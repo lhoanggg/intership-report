@@ -27,14 +27,14 @@ pre: " <b> 1.1. </b> "
 
 ### Week 1 Achievements:
 
-- Gained a general understanding of AWS:
+* Gained a general understanding of AWS:
 
-  - Studied AWS service categories: Compute, Storage, Database, Networking, Security, Identity & Compliance, etc.
+  * Studied AWS service categories: Compute, Storage, Database, Networking, Security, Identity & Compliance, etc.
 
-- Set up and secured the AWS account.
+* Set up and secured the AWS account.
 
-- Understood how IAM works — a core foundation for secure AWS management.
+* Understood how IAM works — a core foundation for secure AWS management.
 
-- Learned how to control costs — an essential skill when working with AWS Free Tier.
+* Learned how to control costs — an essential skill when working with AWS Free Tier.
 
-- Learned how to handle issues and request official support from AWS.
+* Learned how to handle issues and request official support from AWS.

@@ -27,14 +27,14 @@ pre: " <b> 1.1. </b> "
 
 ### Kết quả đạt được tuần 1:
 
-- Hiểu tổng quan về AWS:
+* Hiểu tổng quan về AWS:
 
-  - Tìm hiểu các nhóm dịch vụ AWS theo chức năng: Compute, Storage, Database, Networking, Security, Identity & Compliance,...
+  * Tìm hiểu các nhóm dịch vụ AWS theo chức năng: Compute, Storage, Database, Networking, Security, Identity & Compliance,...
 
-- Thiết lập và bảo mật tài khoản AWS.
+* Thiết lập và bảo mật tài khoản AWS.
 
-- Hiểu cách vận hành IAM – nền tảng quan trọng nhất để quản lý AWS an toàn.
+* Hiểu cách vận hành IAM – nền tảng quan trọng nhất để quản lý AWS an toàn.
 
-- Biết cách kiểm soát chi phí – kỹ năng thiết yếu khi làm việc với AWS Free Tier
+* Biết cách kiểm soát chi phí – kỹ năng thiết yếu khi làm việc với AWS Free Tier.
 
-- Biết cách xử lý sự cố hoặc yêu cầu hỗ trợ chính thức từ AWS.
+* Biết cách xử lý sự cố hoặc yêu cầu hỗ trợ chính thức từ AWS.
