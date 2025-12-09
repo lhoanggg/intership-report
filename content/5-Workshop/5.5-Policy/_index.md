@@ -10,7 +10,7 @@ In this section, you will set up Amazon S3 for static assets, CloudFront for con
 
 #### Architecture Overview
 
-![Ảnh đại diện của bạn](/images/5-Workshop/cloudfront.jpg)
+![Ảnh đại diện của bạn](../../images/5-Workshop/cloudfront.jpg)
 
 ---
 

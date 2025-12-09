@@ -35,17 +35,17 @@ If you haven’t already set up monitoring dashboards, follow the **Configure Am
 
 Once configured, open Amazon Managed Grafana from the AWS Management Console and navigate to the **EC2 Fleet Overview dashboard**. Figure 1 shows a crash event in the Game Server Crashes graph, while the **Crashed Game Sessions** section displays details of the specific crashed game session. Both the instance and the crashed session are linked for deeper investigation.
 
-![EC2 Fleet Overview dashboard showing a crashed Game Session.](/images/3-BlogsTranslated/1.png)
+![EC2 Fleet Overview dashboard showing a crashed Game Session.](../../images/3-BlogsTranslated/1.png)
 **Figure 1:** EC2 Fleet Overview dashboard showing a crashed game session.
 
 Select the affected instance. The memory graph (Figure 2) shows memory spiked sharply, then dropped as the process crashed — a signature of a memory leak. Looking at session-level details, you can see one session used significantly more memory.
 
-![Instance Performance dashboard showing memory leak.](/images/3-BlogsTranslated/2.png)
+![Instance Performance dashboard showing memory leak.](../../images/3-BlogsTranslated/2.png)
 **Figure 2:** Instance Performance dashboard showing memory leak.
 
 Clicking on the crashed game session opens the **Server Performance dashboard** (Figure 3), showing the session’s resource usage up to the moment of crash. The dashboard indicates this session was responsible for the memory leak.
 
-![Server Performance dashboard showing memory leak.](/images/3-BlogsTranslated/3.png)
+![Server Performance dashboard showing memory leak.](../../images/3-BlogsTranslated/3.png)
 **Figure 3:** Server Performance dashboard showing memory leak.
 
 Each graph includes tooltips explaining what to look for and how to interpret the data. The next step is clear: investigate the logs of the crashed session to identify the trigger, whether from a specific game mode or a player’s action. Metrics guide you to the right logs.
@@ -58,12 +58,12 @@ Another scenario: players report stuttering gameplay but no crashes. The issue m
 
 Switch to the **EC2 Instances Overview dashboard** in Amazon Managed Grafana. Figure 4 shows the top 20 EC2 instances by CPU consumption. Most hover around 2–3% CPU, but a few reach 20–30% or higher.
 
-![EC2 Instances Overview dashboard.](/images/3-BlogsTranslated/4.png)
+![EC2 Instances Overview dashboard.](../../images/3-BlogsTranslated/4.png)
 **Figure 4:** EC2 Instances Overview dashboard
 
 Select a high-CPU instance. The dashboard breaks down CPU by game session (Figure 5), immediately showing which session is consuming the most resources. You can then review logs for that session, focusing on periods of elevated CPU usage.
 
-![Instance Performance dashboard showing top CPU consuming game sessions.](/images/3-BlogsTranslated/5.png)
+![Instance Performance dashboard showing top CPU consuming game sessions.](../../images/3-BlogsTranslated/5.png)
 **Figure 5:** Instance Performance dashboard showing top CPU-consuming game sessions.
 
 You may find high CPU correlates with intense combat scenarios or a pathfinding bug causing excessive calculations. Metrics alone don’t tell you exactly what’s wrong, but they indicate where to look.
@@ -74,12 +74,12 @@ You may find high CPU correlates with intense combat scenarios or a pathfinding 
 
 If running your GameLift Servers Fleet with containers instead of EC2, the same troubleshooting approach applies. Figure 6 is the **Container Fleet Overview dashboard**, showing tasks with high CPU or memory usage.
 
-![Container Fleet Overview dashboard.](/images/3-BlogsTranslated/6.png)
+![Container Fleet Overview dashboard.](../../images/3-BlogsTranslated/6.png)
 **Figure 6:** Container Fleet Overview dashboard
 
 Click a specific task, and the **Container Performance dashboard** (Figure 7) breaks down metrics by individual containers. You can see if the game server container is consuming resources as expected or if a sidecar container is causing issues. This granularity helps quickly isolate problems, whether running on EC2 or containers.
 
-![Container Performance dashboard.](/images/3-BlogsTranslated/7.png)
+![Container Performance dashboard.](../../images/3-BlogsTranslated/7.png)
 **Figure 7:** Container Performance dashboard
 
 ---

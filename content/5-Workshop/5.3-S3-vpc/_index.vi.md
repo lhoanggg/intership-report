@@ -10,7 +10,7 @@ Trong phần này, bạn sẽ tạo hạ tầng mạng (VPC) và cơ sở dữ l
 
 #### Tổng quan Kiến trúc
 
-![Ảnh đại diện của bạn](/images/5-Workshop/rds.jpg)
+![Ảnh đại diện của bạn](../../images/5-Workshop/rds.jpg)
 
 #### Nội dung
 

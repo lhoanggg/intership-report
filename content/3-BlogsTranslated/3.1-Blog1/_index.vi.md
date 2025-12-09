@@ -35,17 +35,17 @@ Nếu bạn chưa thiết lập dashboard giám sát, hãy làm theo hướng d�
 
 Sau khi cấu hình xong, mở Amazon Managed Grafana từ AWS Management Console và đi đến **EC2 Fleet Overview dashboard**. Hình 1 hiển thị sự kiện crash trong biểu đồ Game Server Crashes, trong khi phần **Crashed Game Sessions** hiển thị chi tiết phiên game bị crash. Cả instance và phiên game bị crash đều có liên kết, giúp điều tra sâu hơn.
 
-![EC2 Fleet Overview dashboard showing a crashed Game Session.](/images/3-BlogsTranslated/1.png)
+![EC2 Fleet Overview dashboard showing a crashed Game Session.](../../images/3-BlogsTranslated/1.png)
 **Hình 1:** Dashboard EC2 Fleet Overview hiển thị phiên game bị crash.
 
 Chọn instance bị ảnh hưởng. Biểu đồ bộ nhớ (Hình 2) cho thấy bộ nhớ tăng đột ngột, rồi giảm khi process crash — đặc trưng của rò rỉ bộ nhớ. Xem chi tiết theo phiên game, bạn sẽ thấy một phiên sử dụng bộ nhớ nhiều hơn đáng kể.
 
-![Instance Performance dashboard showing memory leak.](/images/3-BlogsTranslated/2.png)
+![Instance Performance dashboard showing memory leak.](../../images/3-BlogsTranslated/2.png)
 **Hình 2:** Dashboard Instance Performance hiển thị rò rỉ bộ nhớ.
 
 Nhấn vào phiên game bị crash để xem **Server Performance dashboard** (Hình 3), hiển thị mức tiêu thụ tài nguyên của phiên đến lúc crash. Dashboard cho thấy phiên game này là nguyên nhân rò rỉ bộ nhớ.
 
-![Server Performance dashboard showing memory leak.](/images/3-BlogsTranslated/3.png)
+![Server Performance dashboard showing memory leak.](../../images/3-BlogsTranslated/3.png)
 **Hình 3:** Dashboard Server Performance hiển thị rò rỉ bộ nhớ.
 
 Mỗi biểu đồ đều có tooltip hướng dẫn cách đọc và giải thích dữ liệu. Bước tiếp theo rõ ràng: kiểm tra logs của phiên game bị crash để xác định nguyên nhân, có thể do chế độ chơi cụ thể hoặc hành động của người chơi. Các chỉ số giúp bạn xác định logs cần kiểm tra.
@@ -58,12 +58,12 @@ Tình huống khác: người chơi phản ánh game bị giật lag nhưng khô
 
 Chuyển đến **EC2 Instances Overview dashboard** trong Amazon Managed Grafana. Hình 4 hiển thị 20 instance EC2 tiêu thụ CPU cao nhất. Phần lớn giữ ở 2–3% CPU, nhưng vài instance lên 20–30% hoặc cao hơn.
 
-![EC2 Instances Overview dashboard.](/images/3-BlogsTranslated/4.png)
+![EC2 Instances Overview dashboard.](../../images/3-BlogsTranslated/4.png)
 **Hình 4:** Dashboard EC2 Instances Overview
 
 Chọn một instance CPU cao. Dashboard phân tách CPU theo phiên game (Hình 5), chỉ ra ngay phiên nào tiêu thụ nhiều tài nguyên nhất. Bạn có thể xem logs phiên game đó, tập trung vào thời điểm CPU tăng cao.
 
-![Instance Performance dashboard showing top CPU consuming game sessions.](/images/3-BlogsTranslated/5.png)
+![Instance Performance dashboard showing top CPU consuming game sessions.](../../images/3-BlogsTranslated/5.png)
 **Hình 5:** Dashboard Instance Performance hiển thị các phiên game tiêu thụ CPU cao.
 
 Có thể bạn nhận thấy CPU cao liên quan đến kịch bản chiến đấu căng thẳng, hoặc lỗi pathfinding khiến tính toán quá mức. Chỉ số không nói chính xác lỗi, nhưng chỉ ra nơi cần kiểm tra.
@@ -74,12 +74,12 @@ Có thể bạn nhận thấy CPU cao liên quan đến kịch bản chiến đ�
 
 Nếu chạy fleet GameLift Servers bằng container thay vì EC2, cách khắc phục tương tự áp dụng. Hình 6 là **Container Fleet Overview dashboard**, hiển thị task tiêu thụ CPU hoặc memory cao nhất.
 
-![Container Fleet Overview dashboard.](/images/3-BlogsTranslated/6.png)
+![Container Fleet Overview dashboard.](../../images/3-BlogsTranslated/6.png)
 **Hình 6:** Container Fleet Overview dashboard
 
 Nhấn vào task cụ thể, dashboard **Container Performance** (Hình 7) phân tách theo container. Bạn có thể xem container server game có tiêu thụ đúng hay không, hoặc container phụ gây vấn đề. Chi tiết này giúp nhanh chóng cô lập vấn đề, dù chạy EC2 hay container.
 
-![Container Performance dashboard.](/images/3-BlogsTranslated/7.png)
+![Container Performance dashboard.](../../images/3-BlogsTranslated/7.png)
 **Hình 7:** Container Performance dashboard
 
 ---

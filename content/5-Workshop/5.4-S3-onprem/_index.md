@@ -10,7 +10,7 @@ In this section, you will create AWS Lambda functions and expose them via Amazon
 
 #### Architecture Overview
 
-![Ảnh đại diện của bạn](/images/5-Workshop/lambda.jpg)
+![Ảnh đại diện của bạn](../../images/5-Workshop/lambda.jpg)
 
 #### API Endpoints
 

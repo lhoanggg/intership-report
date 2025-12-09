@@ -10,7 +10,7 @@ In this section, you will create the network infrastructure (VPC) and database (
 
 #### Architecture Overview
 
-![Ảnh đại diện của bạn](/images/5-Workshop/rds.jpg)
+![Ảnh đại diện của bạn](../../images/5-Workshop/rds.jpg)
 
 #### Content
 

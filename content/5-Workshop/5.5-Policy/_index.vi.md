@@ -10,7 +10,7 @@ Trong phần này, bạn sẽ thiết lập Amazon S3 cho tài nguyên tĩnh, Cl
 
 #### Tổng quan Kiến trúc
 
-![Ảnh đại diện của bạn](/images/5-Workshop/cloudfront.jpg)
+![Ảnh đại diện của bạn](../../images/5-Workshop/cloudfront.jpg)
 
 
 ---
