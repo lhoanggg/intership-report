@@ -1,111 +1,198 @@
 ---
-title : "On-premises DNS Simulation"
-date : "`r Sys.Date()`"
-weight : 4
-chapter : false
-pre : " <b> 5.4.4 </b> "
+title: "Configure CORS & Security"
+date: "2025-09-08"
+weight: 4
+chapter: false
+pre: " <b> 5.4.4. </b> "
 ---
 
-AWS PrivateLink endpoints have a fixed IP address in each Availability Zone where they are deployed, for the life of the endpoint (until it is deleted). These IP addresses are attached to Elastic Network Interfaces (ENIs). AWS recommends using DNS to resolve the IP addresses for endpoints so that downstream applications use the latest IP addresses when ENIs are added to new AZs, or deleted over time.
+#### Understanding CORS
 
-In this section, you will create a forwarding rule to send DNS resolution requests from a simulated on-premises environment to a Route 53 Private Hosted Zone. This section leverages the infrastructure deployed by CloudFormation in the Prepare the environment section.
+**CORS (Cross-Origin Resource Sharing)** is a security feature that restricts web pages from making requests to a different domain than the one serving the web page.
 
-#### Create DNS Alias Records for the Interface endpoint
-1. Navigate to the [Route 53 management console](https://us-east-1.console.aws.amazon.com/route53/v2/hostedzones?region=us-east-1#) (Hosted Zones section).  The CloudFormation template you deployed in the Prepare the environment section created this Private Hosted Zone. Click on the name of the Private Hosted Zone, s3.us-east-1.amazonaws.com:
+When your React frontend (hosted on Amplify) calls your API Gateway, the browser checks CORS headers to determine if the request is allowed.
 
-![hosted zone](/images/5-Workshop/5.4-S3-onprem/hosted-zone.png)
+---
 
-2. Create a new record in the Private Hosted Zone:
+#### Step 1: Configure CORS Headers in Lambda
 
-![Create record](/images/5-Workshop/5.4-S3-onprem/create-record1.png)
+Ensure all Lambda functions return proper CORS headers:
 
-+ Record name and record type keep default options
-+ Alias Button: Click to enable
-+ Route traffic to: Alias to VPC Endpoint
-+ Region: US East (N. Virginia) [us-east-1]
-+ Choose endpoint: Paste the Regional VPC Endpoint DNS name from your text editor (you saved when doing section 4.3)
+```javascript
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',  // Or specific domain
+  'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+};
 
-![record1](/images/5-Workshop/5.4-S3-onprem/record1.png)
-
-3. Click Add another record, and add a second record using the following values. Click Create records when finished to create both records.
-+ Record name: *.
-+ Record type: keep default value (type A)
-+ Alias Button: Click to enable
-+ Route traffic to: Alias to VPC Endpoint
-+ Region: US East (N. Virginia) [us-east-1]
-+ Choose endpoint: Paste the Regional VPC Endpoint DNS name from your text editor
-
-![record 2](/images/5-Workshop/5.4-S3-onprem/record2.png)
-
-The new records appear in the Route 53 console:
-
-![result](/images/5-Workshop/5.4-S3-onprem/result.png)
-
-#### Create a Resolver Forwarding Rule
-
-Route 53 Resolver Forwarding Rules allow you to forward DNS queries from your VPC to other sources for name resolution. Outside of a workshop environment, you might use this feature to forward DNS queries from your VPC to DNS servers running on-premises. In this section, you will simulate an on-premises conditional forwarder by creating a forwarding rule that forwards DNS queries for Amazon S3 to a Private Hosted Zone running in "VPC Cloud" in-order to resolve the PrivateLink interface endpoint regional DNS name.
-
-1. From the Route 53 management console, click **Inbound endpoints** on the left side bar
-2. In the Inbound endpoints console, click the ID of the inbound endpoint
-
-![Inbound endpoint](/images/5-Workshop/5.4-S3-onprem/route53-1.png)
-
-3. Copy the two IP addresses listed to your text editor
-
-![Ip addresses](/images/5-Workshop/5.4-S3-onprem/route53-2.png)
-
-4. From the Route 53 menu, choose **Resolver** > **Rules**, and click **Create rule**:
-
-![Ip addresses](/images/5-Workshop/5.4-S3-onprem/route53-3.png)
-
-5. In the Create rule console:
-+ Name: myS3Rule
-+ Rule type: Forward
-+ Domain name: s3.us-east-1.amazonaws.com
-
-![create rule](/images/5-Workshop/5.4-S3-onprem/route53-4.png)
-
-+ VPC: VPC On-prem
-+ Outbound endpoint: VPCOnpremOutboundEndpoint
-
-![create rule](/images/5-Workshop/5.4-S3-onprem/route53-5.png)
-
-+ Target IP Addresses: Enter both IP addresses from your text editor (inbound endpoint addresses) and then click Submit
-
-![create rule](/images/5-Workshop/5.4-S3-onprem/route53-6.png)
-You have successfully created resolver forwarding rule. 
-
-![create rule](/images/5-Workshop/5.4-S3-onprem/route53-7.png)
-
-#### Test the on-premises DNS Simulation
-
-1. Connect to **Test-Interface-Endpoint EC2 instance** with **Session manager**
-
-![create rule](/images/5-Workshop/5.4-S3-onprem/test1.png)
-
-2. Test DNS resolution. The dig command will return the IP addresses assigned to the VPC Interface endpoint running in VPC Cloud (your IP's will be different): dig +short s3.us-east-1.amazonaws.com 
-
-{{% notice note %}}
-The IP addresses returned are the VPC endpoint IP addresses, NOT the Resolver IP addresses you pasted from your text editor. The IP addresses of the Resolver endpoint and the VPC endpoint look similar because they are all from the VPC Cloud CIDR block.
-{{% /notice %}}
-
-![create rule](/images/5-Workshop/5.4-S3-onprem/dig.png)
-
-
-3. Navigate to the VPC menu (Endpoints section), select the S3 Interface endpoint. Click the Subnets tab and verify that the IP addresses returned by Dig match the VPC endpoint:
-
-![create rule](/images/5-Workshop/5.4-S3-onprem/subnet.png)
-
-4. Return to your shell and use the AWS CLI to test listing your S3 buckets:
-
-```
-aws s3 ls --endpoint-url https://s3.us-east-1.amazonaws.com
+// In your handler response:
+return {
+  statusCode: 200,
+  headers: corsHeaders,
+  body: JSON.stringify(data)
+};
 ```
 
-![create rule](/images/5-Workshop/5.4-S3-onprem/endpoint.png)
+---
 
-5. Terminate your Session Manager session:
+#### Step 2: Configure API Gateway CORS
 
-![create rule](/images/5-Workshop/5.4-S3-onprem/terminal.png)
+**Method 1: Using Console**
 
-In this section you created an Interface endpoint for Amazon S3. This endpoint can be reached from on-premises through Site-to-Site VPN or AWS Direct Connect. Route 53 Resolver outbound endpoints simulated forwarding DNS requests from on-premises to a Private Hosted Zone running the cloud. Route 53 inbound Endpoints recieved the resolution request and returned a response containing the IP addresses of the VPC interface endpoint. Using DNS to resolve the endpoint IP addresses provides high availability in-case of an Availability Zone outage.
+1. Go to **API Gateway Console** → Select your API
+2. For each resource:
+   - Select resource → **Actions** → **Enable CORS**
+   - Configure allowed origins, methods, headers
+   - Click **Enable CORS and replace existing CORS headers**
+
+**Method 2: Using OPTIONS Method**
+
+1. Create OPTIONS method for each resource
+2. Integration type: **Mock**
+3. Add Method Response with status 200
+4. Add Integration Response with headers:
+
+```
+Access-Control-Allow-Headers: 'Content-Type,X-Amz-Date,Authorization,X-Api-Key'
+Access-Control-Allow-Methods: 'GET,POST,OPTIONS'
+Access-Control-Allow-Origin: '*'
+```
+
+---
+
+#### Step 3: API Gateway Security Best Practices
+
+**3.1. Enable API Key (Optional)**
+
+1. Go to **API Gateway** → **API Keys** → **Create API Key**
+2. Name: `daivietblood-api-key`
+3. Go to **Usage Plans** → **Create**
+4. Configure throttling and quota
+5. Associate API Key with Usage Plan
+6. For each method, set **API Key Required**: true
+
+**3.2. Enable Request Validation**
+
+1. Go to **API Gateway** → **Models** → **Create**
+2. Create model for request body:
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "CreateUserModel",
+  "type": "object",
+  "required": ["email", "name", "blood_type"],
+  "properties": {
+    "email": { "type": "string", "format": "email" },
+    "name": { "type": "string", "minLength": 1 },
+    "blood_type": { 
+      "type": "string",
+      "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+    },
+    "phone": { "type": "string" }
+  }
+}
+```
+
+3. Apply model to POST method:
+   - Select method → **Method Request**
+   - **Request Validator**: Validate body
+   - **Request Body**: Add model
+
+**3.3. Enable Throttling**
+
+1. Go to **Stages** → Select `prod`
+2. **Stage Settings** → **Default Method Throttling**
+3. Configure:
+   - **Rate**: 100 requests/second
+   - **Burst**: 200 requests
+
+---
+
+#### Step 4: Lambda Security Best Practices
+
+**4.1. Use AWS Secrets Manager for Credentials**
+
+Instead of storing DB credentials in environment variables:
+
+1. Go to **Secrets Manager** → **Store a new secret**
+2. Secret type: **Other type of secret**
+3. Key/value pairs:
+   ```
+   DB_HOST: daivietblood-db.xxxx.rds.amazonaws.com
+   DB_USER: admin
+   DB_PASSWORD: YourSecurePassword123!
+   DB_NAME: daivietblood
+   ```
+4. Secret name: `daivietblood/db-credentials`
+
+5. Update Lambda to retrieve secrets:
+
+```javascript
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+
+const client = new SecretsManagerClient({ region: 'ap-southeast-1' });
+
+const getDbCredentials = async () => {
+  const command = new GetSecretValueCommand({ SecretId: 'daivietblood/db-credentials' });
+  const response = await client.send(command);
+  return JSON.parse(response.SecretString);
+};
+```
+
+6. Add IAM permission to Lambda role:
+```json
+{
+  "Effect": "Allow",
+  "Action": "secretsmanager:GetSecretValue",
+  "Resource": "arn:aws:secretsmanager:ap-southeast-1:*:secret:daivietblood/*"
+}
+```
+
+**4.2. Input Validation**
+
+Always validate input in Lambda:
+
+```javascript
+const validateUser = (body) => {
+  const errors = [];
+  
+  if (!body.email || !isValidEmail(body.email)) {
+    errors.push('Invalid email');
+  }
+  
+  if (!body.name || body.name.length < 1) {
+    errors.push('Name is required');
+  }
+  
+  const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  if (!validBloodTypes.includes(body.blood_type)) {
+    errors.push('Invalid blood type');
+  }
+  
+  return errors;
+};
+```
+
+---
+
+#### Step 5: Redeploy API
+
+After making changes:
+
+1. **Actions** → **Deploy API**
+2. Select `prod` stage
+3. Click **Deploy**
+
+---
+
+#### Security Checklist
+
+- [ ] CORS configured correctly
+- [ ] Lambda returns proper CORS headers
+- [ ] API Key enabled (optional but recommended)
+- [ ] Request validation enabled
+- [ ] Throttling configured
+- [ ] DB credentials stored in Secrets Manager (recommended)
+- [ ] Input validation in Lambda functions
+- [ ] API redeployed after changes

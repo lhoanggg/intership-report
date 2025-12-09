@@ -1,20 +1,32 @@
 ---
-title : "Access S3 from on-premises"
-date : "`r Sys.Date()`"
-weight : 4
-chapter : false
-pre : " <b> 5.4. </b> "
+title: "Lambda & API Gateway"
+date: "2025-09-08"
+weight: 4
+chapter: false
+pre: " <b> 5.4. </b> "
 ---
 
-#### Overview
+In this section, you will create AWS Lambda functions and expose them via Amazon API Gateway to build the serverless backend for DaiVietBlood.
 
-+ In this section, you will create an Interface endpoint to access Amazon S3 from a simulated on-premises environment. The Interface endpoint will allow you to route to Amazon S3 over a VPN connection from your simulated on-premises environment.
+#### Architecture Overview
 
-+ Why using **Interface endpoint**: 
-    + Gateway endpoints only work with resources running in the VPC where they are created. Interface endpoints work with resources running in VPC, and also resources running in on-premises environments. Connectivty from your on-premises environment to the cloud can be provided by AWS Site-to-Site VPN or AWS Direct Connect.
-    + Interface endpoints allow you to connect to services powered by AWS PrivateLink. These services include some AWS services, services hosted by other AWS customers and partners in their own VPCs (referred to as PrivateLink Endpoint Services), and supported AWS Marketplace Partner services. For this workshop, we will focus on connecting to Amazon S3.
+![Ảnh đại diện của bạn](/images/5-Workshop/lambda.jpg)
 
-![Interface endpoint architecture](/images/5-Workshop/5.4-S3-onprem/diagram3.png)
+#### API Endpoints
 
+| Method | Endpoint | Description |
+|:-------|:---------|:------------|
+| GET | /users | Get all users |
+| POST | /users | Create new user |
+| GET | /users/{id} | Get user by ID |
+| GET | /donations | Get all donations |
+| POST | /donations | Create donation appointment |
+| GET | /emergency-requests | Get emergency requests |
+| POST | /emergency-requests | Create emergency request |
 
+#### Content
 
+1. [Create Lambda Functions](5.4.1-prepare/)
+2. [Create API Gateway](5.4.2-create-interface-enpoint/)
+3. [Test API Endpoints](5.4.3-test-endpoint/)
+4. [Configure CORS & Security](5.4.4-dns-simulation/)

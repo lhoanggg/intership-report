@@ -6,9 +6,7 @@ chapter: false
 pre: " <b> 6. </b> "
 ---
 
-{{% notice warning %}}
-⚠️ **Note:** The information below is for reference purposes only. Please **do not copy it verbatim** into your report, including this warning.
-{{% /notice %}}
+
 
 During my internship at **Amazon Web Services Vietnam** from **09/08/2025** to **11/28/2025**, I had the opportunity to learn, practice, and apply knowledge about cloud computing, particularly AWS services, in a real working environment.  
 

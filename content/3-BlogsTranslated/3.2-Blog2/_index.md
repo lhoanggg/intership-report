@@ -5,22 +5,20 @@ weight: 1
 chapter: false
 pre: " <b> 3.2. </b> "
 ---
-{{% notice warning %}}
-⚠️ **Note:** The information below is for reference purposes only. Please **do not copy verbatim** for your report, including this warning.
-{{% /notice %}}
+
 
 # Advanced analytics using Amazon CloudWatch Logs Insights
 
 **Authors:** Joe Alioto & Dot Ho | **Date:** 27 AUG 2025 | **Category:** Amazon CloudWatch, Observability, Logs, Analytics
 
-Effective log management and analysis are critical for maintaining system stability, security, and high performance. Amazon CloudWatch Logs Insights has long been a powerful tool for searching, filtering, and analyzing log data from multiple log groups. The addition of OpenSearch Piped Processing Language (PPL) and OpenSearch SQL support provides greater flexibility and familiarity for log analytics. :contentReference[oaicite:4]{index=4}
+Effective log management and analysis are critical for maintaining system stability, security, and high performance. Amazon CloudWatch Logs Insights has long been a powerful tool for searching, filtering, and analyzing log data from multiple log groups. The addition of OpenSearch Piped Processing Language (PPL) and OpenSearch SQL support provides greater flexibility and familiarity for log analytics.
 
 Whether you are a developer debugging application issues, a security analyst investigating threats, or an operations manager monitoring system performance — these new capabilities empower you to:
 
-- Use AI-powered natural language query generation and automatic result summarization — reducing the time from raw logs to insights. :contentReference[oaicite:5]{index=5}  
-- Easily **correlate** logs using JOINs across multiple log groups. :contentReference[oaicite:6]{index=6}  
-- Leverage a rich function library for processing and analyzing log data (JSON parsing, mathematical functions, string manipulation...) without needing external tools. :contentReference[oaicite:7]{index=7}  
-- Correlate data from various log sources — ideal for complex systems, microservices, and distributed architectures. :contentReference[oaicite:8]{index=8}
+- Use AI-powered natural language query generation and automatic result summarization — reducing the time from raw logs to insights.
+- Easily **correlate** logs using JOINs across multiple log groups.
+- Leverage a rich function library for processing and analyzing log data (JSON parsing, mathematical functions, string manipulation...) without needing external tools.
+- Correlate data from various log sources — ideal for complex systems, microservices, and distributed architectures.
 
 ---
 
@@ -36,7 +34,7 @@ FROM loggroupname
 GROUP BY eventName
 ORDER BY count DESC
 LIMIT 10
-``` :contentReference[oaicite:9]{index=9}
+```
 
 ---
 
@@ -52,7 +50,7 @@ SELECT a.transaction_id,
        i.timestamp AS infrastructure_timestamp
 FROM application_logs a
 LEFT JOIN infrastructure_logs i ON a.transaction_id = i.transaction_id
-``` :contentReference[oaicite:10]{index=10}
+```
 
 This is especially useful in microservices environments, where a transaction often traverses multiple services.
 
@@ -68,7 +66,7 @@ SELECT
   AVG(CAST(JSON_EXTRACT_SCALAR(message, '$.response_time') AS DOUBLE)) as avg_response_time
 FROM loggroupname
 GROUP BY JSON_EXTRACT_SCALAR(message, '$.user_id')
-``` :contentReference[oaicite:11]{index=11}
+```
 
 This allows deeper analysis without exporting logs elsewhere.
 
@@ -86,7 +84,7 @@ FROM (
    GROUP BY user_id
 ) subquery
 WHERE api_calls > (SELECT AVG(api_calls) * 2 FROM subquery)
-``` :contentReference[oaicite:12]{index=12}
+```
 
 ---
 
@@ -95,31 +93,31 @@ WHERE api_calls > (SELECT AVG(api_calls) * 2 FROM subquery)
 ### Natural language query generation & summarization
 
 You can type a simple English command such as:  
-> “Get api count by eventSource and eventName and sort it by most to least”  
+> "Get api count by eventSource and eventName and sort it by most to least"  
 
-→ CloudWatch Logs Insights automatically generates a valid query (PPL / SQL / Logs Insights QL). After execution, the system can **summarize the results** in natural language — helping you quickly understand insights without scanning hundreds or thousands of log lines. :contentReference[oaicite:13]{index=13}
+→ CloudWatch Logs Insights automatically generates a valid query (PPL / SQL / Logs Insights QL). After execution, the system can **summarize the results** in natural language — helping you quickly understand insights without scanning hundreds or thousands of log lines.
 
 ### On-demand anomaly detection
 
 A notable feature: you can detect unusual patterns instantly — without prior setup:
 
-- Use `pattern @message | anomaly` to identify anomalies. :contentReference[oaicite:14]{index=14}  
-- Returned fields include: `@description`, `@anomalyLogSamples`, `@priority`, `@priorityScore`, `@patternString`. :contentReference[oaicite:15]{index=15}  
-- You can also use `compare` to compare patterns across time ranges — useful for investigating differences between current and historical logs. :contentReference[oaicite:16]{index=16}
+- Use `pattern @message | anomaly` to identify anomalies.
+- Returned fields include: `@description`, `@anomalyLogSamples`, `@priority`, `@priorityScore`, `@patternString`.
+- You can also use `compare` to compare patterns across time ranges — useful for investigating differences between current and historical logs.
 
 Typical use cases:
 
-- Security monitoring: detect unusual access, login failures... :contentReference[oaicite:17]{index=17}  
-- Application health monitoring: detect error spikes, latency issues... :contentReference[oaicite:18]{index=18}  
-- Infrastructure monitoring: identify abnormal resource usage... :contentReference[oaicite:19]{index=19}
+- Security monitoring: detect unusual access, login failures...
+- Application health monitoring: detect error spikes, latency issues...
+- Infrastructure monitoring: identify abnormal resource usage...
 
 ---
 
 ## Correlation — subqueries & JOINs across multiple log groups
 
-With JOINs and subqueries, you can correlate data across log groups — enabling end-to-end transaction tracing, cross-service debugging, and multi-service event investigation. :contentReference[oaicite:20]{index=20}
+With JOINs and subqueries, you can correlate data across log groups — enabling end-to-end transaction tracing, cross-service debugging, and multi-service event investigation.
 
-**Example:** find all orders whose payment status is “completed”.
+**Example:** find all orders whose payment status is "completed".
 
 **SQL:**
 
@@ -134,7 +132,7 @@ WHERE EXISTS (
 )
 ORDER BY timestamp DESC
 LIMIT 10;
-``` :contentReference[oaicite:21]{index=21}
+```
 
 **PPL:**
 
@@ -146,11 +144,11 @@ fields timestamp, correlationId
     | fields `correlationId`
   ]
 | head 10
-``` :contentReference[oaicite:22]{index=22}
+```
 
-You can also use JOINs to combine full payment + order data (orderId, paymentStatus, amount, payment method…). :contentReference[oaicite:23]{index=23}
+You can also use JOINs to combine full payment + order data (orderId, paymentStatus, amount, payment method…).
 
-When working with correlation, pay attention to appropriate time ranges, indexing common fields, performance on large datasets, and handling missing or null correlationId values. :contentReference[oaicite:24]{index=24}
+When working with correlation, pay attention to appropriate time ranges, indexing common fields, performance on large datasets, and handling missing or null correlationId values.
 
 ---
 

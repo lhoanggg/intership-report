@@ -1,99 +1,251 @@
 ---
-title : "VPC Endpoint Policies"
-date : "`r Sys.Date()`"
-weight : 5
-chapter : false
-pre : " <b> 5.5. </b> "
+title: "S3, CloudFront & Amplify"
+date: "2025-09-08"
+weight: 5
+chapter: false
+pre: " <b> 5.5. </b> "
 ---
 
-When you create an interface or gateway endpoint, you can attach an endpoint policy to it that controls access to the service to which you are connecting. A VPC endpoint policy is an IAM resource policy that you attach to an endpoint. If you do not attach a policy when you create an endpoint, AWS attaches a default policy for you that allows full access to the service through the endpoint.
+In this section, you will set up Amazon S3 for static assets, CloudFront for content distribution, and AWS Amplify to host the React frontend application.
 
-You can create a policy that restricts access to specific S3 buckets only. This is useful if you only want certain S3 Buckets to be accessible through the endpoint.
+#### Architecture Overview
 
-In this section you will create a VPC endpoint policy that restricts access to the S3 bucket specified in the VPC endpoint policy.
+![Ảnh đại diện của bạn](/images/5-Workshop/cloudfront.jpg)
 
-![endpoint diagram](/images/5-Workshop/5.5-Policy/s3-bucket-policy.png)
+---
 
-#### Connect to an EC2 instance and verify connectivity to S3
+#### Part 1: Amazon S3 Setup
 
-1. Start a new AWS Session Manager session on the instance named Test-Gateway-Endpoint. From the session, verify that you can list the contents of the bucket you created in Part 1: Access S3 from VPC:
+##### Step 1: Create S3 Bucket for Assets
 
-```
-aws s3 ls s3://\<your-bucket-name\>
-```
-![test](/images/5-Workshop/5.5-Policy/test1.png)
+1. Go to **S3 Console** → **Create bucket**
 
-The bucket contents include the two 1 GB files uploaded in earlier.
+2. General configuration:
+   - **Bucket name**: `daivietblood-assets-{your-account-id}`
+   - **AWS Region**: Asia Pacific (Singapore) ap-southeast-1
 
-2. Create a new S3 bucket; follow the naming pattern you used in Part 1, but add a '-2' to the name. Leave other fields as default and click create
+3. Object Ownership:
+   - **ACLs disabled** (recommended)
 
-![create bucket](/images/5-Workshop/5.5-Policy/create-bucket.png)
+4. Block Public Access settings:
+   - **Block all public access**: ✅ (We'll use CloudFront)
 
-Successfully create bucket
+5. Bucket Versioning:
+   - **Enable** (recommended for production)
 
-![Success](/images/5-Workshop/5.5-Policy/create-bucket-success.png)
+6. Default encryption:
+   - **Server-side encryption**: Enable
+   - **Encryption type**: Amazon S3 managed keys (SSE-S3)
 
-3. Navigate to: Services > VPC > Endpoints, then select the Gateway VPC endpoint you created earlier. Click the Policy tab. Click Edit policy.
+7. Click **Create bucket**
 
-![policy](/images/5-Workshop/5.5-Policy/policy1.png)
+##### Step 2: Create Bucket Policy for CloudFront
 
-The default policy allows access to all S3 Buckets through the VPC endpoint.
+After creating CloudFront distribution (Part 2), update bucket policy:
 
-4. In Edit Policy console, copy & Paste the following policy, then replace yourbucketname-2 with your 2nd bucket name. This policy will allow access through the VPC endpoint to your new bucket, but not any other bucket in Amazon S3. Click Save to apply the policy.
-
-```
+```json
 {
-  "Id": "Policy1631305502445",
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "Stmt1631305501021",
-      "Action": "s3:*",
-      "Effect": "Allow",
-      "Resource": [
-      				"arn:aws:s3:::yourbucketname-2",
-       				"arn:aws:s3:::yourbucketname-2/*"
-       ],
-      "Principal": "*"
-    }
-  ]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowCloudFrontAccess",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+            },
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::daivietblood-assets-{your-account-id}/*",
+            "Condition": {
+                "StringEquals": {
+                    "AWS:SourceArn": "arn:aws:cloudfront::{account-id}:distribution/{distribution-id}"
+                }
+            }
+        }
+    ]
 }
 ```
 
-![custom policy](/images/5-Workshop/5.5-Policy/policy2.png)
+##### Step 3: Upload Sample Assets
 
-Successfully customize policy
+1. Create folder structure:
+   ```
+   /images
+     /blood-types
+     /icons
+     /banners
+   /documents
+   ```
 
-![success](/static/images/5-Workshop/5.5-Policy/success.png)
+2. Upload sample images for the application
 
-5. From your session on the Test-Gateway-Endpoint instance, test access to the S3 bucket you created in Part 1: Access S3 from VPC
+---
+
+#### Part 2: CloudFront Setup
+
+##### Step 1: Create CloudFront Distribution
+
+1. Go to **CloudFront Console** → **Create distribution**
+
+2. Origin settings:
+   - **Origin domain**: Select your S3 bucket
+   - **Origin path**: Leave empty
+   - **Name**: `daivietblood-s3-origin`
+   - **Origin access**: Origin access control settings (recommended)
+   - **Create new OAC**: Click **Create control setting**
+     - Name: `daivietblood-oac`
+     - Signing behavior: Sign requests
+
+3. Default cache behavior:
+   - **Viewer protocol policy**: Redirect HTTP to HTTPS
+   - **Allowed HTTP methods**: GET, HEAD
+   - **Cache policy**: CachingOptimized
+
+4. Settings:
+   - **Price class**: Use only North America and Europe (or All edge locations)
+   - **Default root object**: `index.html`
+
+5. Click **Create distribution**
+
+6. **Important**: Copy the bucket policy provided and update your S3 bucket policy
+
+##### Step 2: Get CloudFront Domain
+
+After distribution is deployed (takes 5-10 minutes):
+
+1. Copy the **Distribution domain name**:
+   ```
+   https://d1234567890.cloudfront.net
+   ```
+
+2. Test accessing an asset:
+   ```
+   https://d1234567890.cloudfront.net/images/logo.png
+   ```
+
+---
+
+#### Part 3: AWS Amplify Setup
+
+##### Step 1: Prepare React Application
+
+1. Create React app (if not exists):
+```bash
+npx create-react-app daivietblood-frontend
+cd daivietblood-frontend
 ```
-aws s3 ls s3://<yourbucketname>
+
+2. Install dependencies:
+```bash
+npm install axios react-router-dom
 ```
 
-This command will return an error because access to this bucket is not permitted by your new VPC endpoint policy:
+3. Create `.env` file:
+```
+REACT_APP_API_URL=https://xxxxxxxxxx.execute-api.ap-southeast-1.amazonaws.com/prod
+REACT_APP_ASSETS_URL=https://d1234567890.cloudfront.net
+```
 
-![error](/static/images/5-Workshop/5.5-Policy/error.png)
+4. Sample API service (`src/services/api.js`):
+```javascript
+import axios from 'axios';
 
-6. Return to your home directory on your EC2 instance ` cd~ `
+const API_URL = process.env.REACT_APP_API_URL;
 
-+ Create a file ```fallocate -l 1G test-bucket2.xyz ```
-+ Copy file to 2nd bucket ```aws s3 cp test-bucket2.xyz s3://<your-2nd-bucket-name>```
+export const getUsers = async () => {
+  const response = await axios.get(`${API_URL}/users`);
+  return response.data;
+};
 
-![success](/static/images/5-Workshop/5.5-Policy/test2.png)
+export const createUser = async (userData) => {
+  const response = await axios.post(`${API_URL}/users`, userData);
+  return response.data;
+};
 
-This operation succeeds because it is permitted by the VPC endpoint policy.
+export const getEmergencyRequests = async () => {
+  const response = await axios.get(`${API_URL}/emergency-requests`);
+  return response.data;
+};
 
-![success](/static/images/5-Workshop/5.5-Policy/test2-success.png)
+export const createEmergencyRequest = async (requestData) => {
+  const response = await axios.post(`${API_URL}/emergency-requests`, requestData);
+  return response.data;
+};
+```
 
-+ Then we test access to the first bucket by copy the file to 1st bucket `aws s3 cp test-bucket2.xyz s3://<your-1st-bucket-name>`
+5. Push to GitHub repository
 
-![fail](/static/images/5-Workshop/5.5-Policy/test2-fail.png)
+##### Step 2: Deploy with Amplify
 
-This command will return an error because access to this bucket is not permitted by your new VPC endpoint policy.
+1. Go to **AWS Amplify Console** → **Create new app**
 
-#### Part 3 Summary:
+2. Choose source:
+   - **GitHub** → **Continue**
+   - Authorize AWS Amplify to access your GitHub
 
-In this section, you created a VPC endpoint policy for Amazon S3, and used the AWS CLI to test the policy. AWS CLI actions targeted to your original S3 bucket failed because you applied a policy that only allowed access to the second bucket you created. AWS CLI actions targeted for your second bucket succeeded because the policy allowed them. These policies can be useful in situations where you need to control access to resources through VPC endpoints.
+3. Add repository branch:
+   - **Repository**: Select your repository
+   - **Branch**: main
 
+4. Configure build settings:
+   - **App name**: `daivietblood-frontend`
+   - **Build and test settings**: Auto-detected for React
 
+5. Build settings (amplify.yml):
+```yaml
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+```
+
+6. Environment variables:
+   - Add `REACT_APP_API_URL` and `REACT_APP_ASSETS_URL`
+
+7. Click **Save and deploy**
+
+##### Step 3: Configure Custom Domain (Optional)
+
+1. Go to **App settings** → **Domain management**
+2. Click **Add domain**
+3. Enter your domain name
+4. Configure DNS records as instructed
+
+---
+
+#### Part 4: Verify Deployment
+
+1. Access Amplify URL:
+   ```
+   https://main.d1234567890.amplifyapp.com
+   ```
+
+2. Test functionality:
+   - [ ] Homepage loads correctly
+   - [ ] API calls work (check Network tab)
+   - [ ] Images load from CloudFront
+   - [ ] No CORS errors
+
+---
+
+#### Verification Checklist
+
+- [ ] S3 bucket created with proper settings
+- [ ] CloudFront distribution deployed
+- [ ] S3 bucket policy updated for CloudFront access
+- [ ] Assets accessible via CloudFront URL
+- [ ] React app deployed to Amplify
+- [ ] Environment variables configured
+- [ ] Frontend can call API Gateway
+- [ ] Images load from CloudFront

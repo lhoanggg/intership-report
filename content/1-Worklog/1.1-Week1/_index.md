@@ -6,9 +6,7 @@ chapter: false
 pre: " <b> 1.1. </b> "
 ---
 
-{{% notice warning %}}
-⚠️ **Note:** The information below is for reference only. Please **do not copy it verbatim** for your own report, including this warning.
-{{% /notice %}}
+
 
 ### Week 1 Objectives:
 

@@ -1,58 +1,315 @@
 ---
-title : "Chuẩn bị tài nguyên"
-date : "`r Sys.Date()`"
-weight : 1
-chapter : false
-pre : " <b> 5.4.1 </b> "
+title: "Tạo Lambda Functions"
+date: "2025-09-08"
+weight: 1
+chapter: false
+pre: " <b> 5.4.1. </b> "
 ---
 
-Để chuẩn bị cho phần này của workshop, bạn sẽ cần phải:
-+ Triển khai CloudFormation stack
-+ Sửa đổi bảng định tuyến VPC.
+#### Bước 1: Tạo IAM Role cho Lambda
 
-Các thành phần này hoạt động cùng nhau để mô phỏng DNS forwarding và name resolution.
+1. Vào **IAM Console** → **Roles** → **Create role**
 
-#### Triển khai CloudFormation stack
+2. Trusted entity type:
+   - **AWS service**
+   - **Use case**: Lambda
 
-Mẫu CloudFormation sẽ tạo các dịch vụ bổ sung để hỗ trợ mô phỏng môi trường truyền thống:
-+ Một Route 53 Private Hosted Zone lưu trữ các bản ghi Bí danh (Alias records) cho điểm cuối PrivateLink S3
-+ Một Route 53 Inbound Resolver endpoint cho phép "VPC Cloud" giải quyết các yêu cầu resolve DNS gửi đến Private Hosted Zone
-+ Một Route 53 Outbound Resolver endpoint cho phép "VPC On-prem" chuyển tiếp các yêu cầu DNS cho S3 sang "VPC Cloud"
+3. Thêm permissions:
+   - `AWSLambdaVPCAccessExecutionRole`
+   - `AWSLambdaBasicExecutionRole`
 
-![route 53 diagram](/images/5-Workshop/5.4-S3-onprem/route53.png)
+4. Role details:
+   - **Role name**: `daivietblood-lambda-role`
+   - **Description**: IAM role for DaiVietBlood Lambda functions
 
-1. Click link sau để mở [AWS CloudFormation console](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/quickcreate?templateURL=https://s3.amazonaws.com/reinvent-endpoints-builders-session/R53CF.yaml&stackName=PLOnpremSetup). Mẫu yêu cầu sẽ được tải sẵn vào menu. Chấp nhận tất cả mặc định và nhấp vào Tạo stack.
+5. Click **Create role**
 
-![Create stack](/images/5-Workshop/5.4-S3-onprem/create-stack.png)
+---
 
-![Button](/images/5-Workshop/5.4-S3-onprem/create-stack-button.png)
+#### Bước 2: Tạo Lambda Layer cho Dependencies
 
-Có thể mất vài phút để triển khai stack hoàn tất. Bạn có thể tiếp tục với bước tiếp theo mà không cần đợi quá trình triển khai kết thúc.
+1. Tạo folder cho dependencies:
+```bash
+mkdir -p nodejs
+cd nodejs
+npm init -y
+npm install mysql2
+```
 
-####  Cập nhật bảng định tuyến private on-premise 
+2. Tạo file zip:
+```bash
+cd ..
+zip -r mysql2-layer.zip nodejs
+```
 
-Workshop này sử dụng StrongSwan VPN chạy trên EC2 instance để mô phỏng khả năng kết nối giữa trung tâm dữ liệu truyền thống và môi trường cloud AWS. Hầu hết các thành phần bắt buộc đều được cung cấp trước khi bạn bắt đầu. Để hoàn tất cấu hình VPN, bạn sẽ sửa đổi bảng định tuyến "VPC on-prem" để hướng lưu lượng đến cloud đi qua StrongSwan VPN instance.
+3. Vào **Lambda Console** → **Layers** → **Create layer**
 
-1. Mở Amazon EC2 console 
+4. Cấu hình:
+   - **Name**: `mysql2-layer`
+   - **Upload**: Chọn `mysql2-layer.zip`
+   - **Compatible runtimes**: Node.js 18.x, Node.js 20.x
 
-2. Chọn instance tên infra-vpngw-test. Từ Details tab, copy Instance ID và paste vào text editor của bạn để sử dụng ở những bước tiếp theo
+5. Click **Create**
 
-![ec2 id](/images/5-Workshop/5.4-S3-onprem/ec2-onprem-id.png)
+---
 
-3. Đi đến VPC menu bằng cách gõ "VPC" vào Search box
+#### Bước 3: Tạo Lambda Function - Get Users
 
-4. Click vào Route Tables, chọn RT Private On-prem route table, chọn Routes tab, và click Edit Routes.
+1. Vào **Lambda Console** → **Functions** → **Create function**
 
-![rt](/images/5-Workshop/5.4-S3-onprem/rt.png)
+2. Basic information:
+   - **Function name**: `daivietblood-get-users`
+   - **Runtime**: Node.js 20.x
+   - **Architecture**: x86_64
+   - **Execution role**: Use existing role → `daivietblood-lambda-role`
 
-5. Click Add route.
-+ Destination: CIDR block của Cloud VPC
-+ Target: ID của infra-vpngw-test instance (bạn đã lưu lại ở bước trên)
+3. Click **Create function**
 
-![add route](/images/5-Workshop/5.4-S3-onprem/add-route.png)
+4. Thêm Layer:
+   - Cuộn xuống **Layers** → **Add a layer**
+   - **Custom layers** → Chọn `mysql2-layer`
+   - Click **Add**
 
-6. Click Save changes
+5. Cấu hình VPC:
+   - Vào **Configuration** → **VPC** → **Edit**
+   - **VPC**: `daivietblood-vpc`
+   - **Subnets**: Chọn cả hai Private Subnets
+   - **Security groups**: `daivietblood-lambda-sg`
+   - Click **Save**
 
+6. Thêm Environment Variables:
+   - Vào **Configuration** → **Environment variables** → **Edit**
+   - Thêm:
+     ```
+     DB_HOST = daivietblood-db.xxxx.ap-southeast-1.rds.amazonaws.com
+     DB_PORT = 3306
+     DB_NAME = daivietblood
+     DB_USER = admin
+     DB_PASSWORD = YourSecurePassword123!
+     ```
+   - Click **Save**
 
+7. Thêm code trong tab **Code**:
 
+```javascript
+const mysql = require('mysql2/promise');
 
+let connection;
+
+const getConnection = async () => {
+  if (!connection) {
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    });
+  }
+  return connection;
+};
+
+exports.handler = async (event) => {
+  try {
+    const conn = await getConnection();
+    const [rows] = await conn.execute('SELECT * FROM users');
+    
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify(rows)
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
+  }
+};
+```
+
+8. Click **Deploy**
+
+---
+
+#### Bước 4: Tạo Lambda Function - Create User
+
+1. Tạo function mới: `daivietblood-create-user`
+2. Cấu hình giống như trên (VPC, Layer, Environment Variables)
+3. Thêm code:
+
+```javascript
+const mysql = require('mysql2/promise');
+
+let connection;
+
+const getConnection = async () => {
+  if (!connection) {
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    });
+  }
+  return connection;
+};
+
+exports.handler = async (event) => {
+  try {
+    const body = JSON.parse(event.body);
+    const { email, name, blood_type, phone } = body;
+
+    if (!email || !name || !blood_type) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Missing required fields' })
+      };
+    }
+
+    const conn = await getConnection();
+    const [result] = await conn.execute(
+      'INSERT INTO users (email, name, blood_type, phone) VALUES (?, ?, ?, ?)',
+      [email, name, blood_type, phone || null]
+    );
+
+    return {
+      statusCode: 201,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({
+        id: result.insertId,
+        email,
+        name,
+        blood_type,
+        phone
+      })
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    
+    if (error.code === 'ER_DUP_ENTRY') {
+      return {
+        statusCode: 409,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Email already exists' })
+      };
+    }
+
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
+  }
+};
+```
+
+---
+
+#### Bước 5: Tạo Lambda Function - Emergency Requests
+
+1. Tạo function: `daivietblood-emergency-requests`
+2. Cấu hình giống như trên
+3. Thêm code:
+
+```javascript
+const mysql = require('mysql2/promise');
+
+let connection;
+
+const getConnection = async () => {
+  if (!connection) {
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    });
+  }
+  return connection;
+};
+
+exports.handler = async (event) => {
+  const conn = await getConnection();
+  const method = event.httpMethod;
+
+  try {
+    if (method === 'GET') {
+      const [rows] = await conn.execute(
+        'SELECT * FROM emergency_requests WHERE status = "open" ORDER BY urgency DESC, created_at DESC'
+      );
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify(rows)
+      };
+    }
+
+    if (method === 'POST') {
+      const body = JSON.parse(event.body);
+      const { requester_name, blood_type, units_needed, hospital, urgency } = body;
+
+      const [result] = await conn.execute(
+        'INSERT INTO emergency_requests (requester_name, blood_type, units_needed, hospital, urgency) VALUES (?, ?, ?, ?, ?)',
+        [requester_name, blood_type, units_needed, hospital, urgency || 'normal']
+      );
+
+      return {
+        statusCode: 201,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ id: result.insertId, message: 'Emergency request created' })
+      };
+    }
+
+    return {
+      statusCode: 405,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
+  }
+};
+```
+
+---
+
+#### Checklist xác minh
+
+- [ ] IAM Role đã tạo với VPC và Basic execution permissions
+- [ ] Lambda Layer đã tạo với mysql2 package
+- [ ] Lambda functions đã tạo và deploy:
+  - [ ] daivietblood-get-users
+  - [ ] daivietblood-create-user
+  - [ ] daivietblood-emergency-requests
+- [ ] Tất cả functions đã cấu hình VPC (Private Subnets)
+- [ ] Environment variables đã thiết lập đúng
+- [ ] Functions đã deploy thành công

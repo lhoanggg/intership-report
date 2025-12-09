@@ -1,40 +1,138 @@
 ---
-title : "Create a gateway endpoint"
-date :  "`r Sys.Date()`" 
-weight : 1
-chapter : false
-pre : " <b> 5.3.1 </b> "
+title: "Create VPC"
+date: "2025-09-08"
+weight: 1
+chapter: false
+pre: " <b> 5.3.1. </b> "
 ---
 
-1. Open the [Amazon VPC console](https://us-east-1.console.aws.amazon.com/vpc/home?region=us-east-1#Home:)
-2. In the navigation pane, choose **Endpoints**, then click **Create Endpoint**:
+#### Step 1: Create VPC
 
-{{% notice note %}}
-You will see **6 existing VPC endpoints** that support **AWS Systems Manager (SSM)**. These endpoints were deployed automatically by the **CloudFormation Templates** for this workshop.
+1. Go to **VPC Console** → **Your VPCs** → **Create VPC**
+
+2. Configure VPC:
+   - **Resources to create**: VPC and more
+   - **Name tag auto-generation**: `daivietblood`
+   - **IPv4 CIDR block**: `10.0.0.0/16`
+   - **IPv6 CIDR block**: No IPv6 CIDR block
+   - **Tenancy**: Default
+
+3. Configure Subnets:
+   - **Number of Availability Zones**: 2
+   - **Number of public subnets**: 2
+   - **Number of private subnets**: 2
+   - **Customize subnets CIDR blocks**:
+     - Public subnet CIDR block in ap-southeast-1a: `10.0.1.0/24`
+     - Public subnet CIDR block in ap-southeast-1b: `10.0.2.0/24`
+     - Private subnet CIDR block in ap-southeast-1a: `10.0.3.0/24`
+     - Private subnet CIDR block in ap-southeast-1b: `10.0.4.0/24`
+
+4. Configure NAT Gateway:
+   - **NAT gateways**: In 1 AZ
+   
+5. Configure VPC Endpoints:
+   - **VPC endpoints**: None (we'll create later if needed)
+
+6. Click **Create VPC**
+
+{{% notice info %}}
+ℹ️ VPC creation takes 2-3 minutes. Wait until status shows "Available".
 {{% /notice %}}
 
-![endpoint](/images/5-Workshop/5.3-S3-vpc/endpoints.png)
+---
 
-3. In the Create endpoint console:
-+ Specify name of the endpoint: ```s3-gwe```
-+ In service category, choose **AWS services**
+#### Step 2: Verify VPC Resources
 
-![endpoint](/images/5-Workshop/5.3-S3-vpc/create-s3-gwe1.png)
+After creation, verify the following resources were created:
 
-+ In **Services**, type ```s3``` in the search box and choose the service with type **gateway**
+| Resource | Name | Details |
+|:---------|:-----|:--------|
+| VPC | daivietblood-vpc | 10.0.0.0/16 |
+| Public Subnet 1 | daivietblood-subnet-public1-ap-southeast-1a | 10.0.1.0/24 |
+| Public Subnet 2 | daivietblood-subnet-public2-ap-southeast-1b | 10.0.2.0/24 |
+| Private Subnet 1 | daivietblood-subnet-private1-ap-southeast-1a | 10.0.3.0/24 |
+| Private Subnet 2 | daivietblood-subnet-private2-ap-southeast-1b | 10.0.4.0/24 |
+| Internet Gateway | daivietblood-igw | Attached to VPC |
+| NAT Gateway | daivietblood-nat-public1-ap-southeast-1a | In Public Subnet 1 |
+| Route Table (Public) | daivietblood-rtb-public | Routes to IGW |
+| Route Table (Private) | daivietblood-rtb-private1-ap-southeast-1a | Routes to NAT |
 
-![endpoint](/images/5-Workshop/5.3-S3-vpc/services.png)
+---
 
-+ For VPC, select **VPC Cloud** from the drop-down.
-+ For **Configure route tables**, select the route table that is already associated with **two subnets** (note: this is not the main route table for the VPC, but a second route table created by CloudFormation).
+#### Step 3: Create Security Groups
 
-![endpoint](/images/5-Workshop/5.3-S3-vpc/vpc.png)
+**3.1. Security Group for Lambda**
 
-+ **For Policy**, leave the default option, **Full Access**, to allow full access to the service. You will deploy **a VPC endpoint policy** in a later lab module to demonstrate restricting access to **S3 buckets** based on policies.
+1. Go to **VPC Console** → **Security Groups** → **Create security group**
 
-![endpoint](/images/5-Workshop/5.3-S3-vpc/policy.png)
+2. Configure:
+   - **Security group name**: `daivietblood-lambda-sg`
+   - **Description**: Security group for Lambda functions
+   - **VPC**: Select `daivietblood-vpc`
 
-+ Do not add a tag to the VPC endpoint at this time.
-+ Click **Create endpoint**, then click x after receiving a successful creation message.
+3. Inbound rules: (Leave empty - Lambda initiates connections)
 
-![endpoint](/images/5-Workshop/5.3-S3-vpc/complete.png)
+4. Outbound rules:
+   | Type | Protocol | Port | Destination | Description |
+   |:-----|:---------|:-----|:------------|:------------|
+   | All traffic | All | All | 0.0.0.0/0 | Allow all outbound |
+
+5. Click **Create security group**
+
+---
+
+**3.2. Security Group for RDS**
+
+1. Go to **VPC Console** → **Security Groups** → **Create security group**
+
+2. Configure:
+   - **Security group name**: `daivietblood-rds-sg`
+   - **Description**: Security group for RDS MySQL
+   - **VPC**: Select `daivietblood-vpc`
+
+3. Inbound rules:
+   | Type | Protocol | Port | Source | Description |
+   |:-----|:---------|:-----|:-------|:------------|
+   | MySQL/Aurora | TCP | 3306 | daivietblood-lambda-sg | Allow Lambda access |
+
+4. Outbound rules:
+   | Type | Protocol | Port | Destination | Description |
+   |:-----|:---------|:-----|:------------|:------------|
+   | All traffic | All | All | 0.0.0.0/0 | Allow all outbound |
+
+5. Click **Create security group**
+
+{{% notice warning %}}
+⚠️ **Security Best Practice:** Only allow access from Lambda Security Group to RDS. Never open port 3306 to 0.0.0.0/0.
+{{% /notice %}}
+
+---
+
+#### Step 4: Create DB Subnet Group
+
+1. Go to **RDS Console** → **Subnet groups** → **Create DB subnet group**
+
+2. Configure:
+   - **Name**: `daivietblood-db-subnet-group`
+   - **Description**: Subnet group for DaiVietBlood RDS
+   - **VPC**: Select `daivietblood-vpc`
+
+3. Add subnets:
+   - **Availability Zones**: Select `ap-southeast-1a` and `ap-southeast-1b`
+   - **Subnets**: Select both **Private Subnets** (10.0.3.0/24 and 10.0.4.0/24)
+
+4. Click **Create**
+
+---
+
+#### Verification Checklist
+
+- [ ] VPC created with CIDR 10.0.0.0/16
+- [ ] 2 Public Subnets created
+- [ ] 2 Private Subnets created
+- [ ] Internet Gateway attached to VPC
+- [ ] NAT Gateway created in Public Subnet
+- [ ] Route tables configured correctly
+- [ ] Lambda Security Group created
+- [ ] RDS Security Group created with inbound rule from Lambda SG
+- [ ] DB Subnet Group created with Private Subnets

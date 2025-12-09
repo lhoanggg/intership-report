@@ -1,95 +1,252 @@
 ---
-title : "VPC Endpoint Policies"
-date : "`r Sys.Date()`"
-weight : 5
-chapter : false
-pre : " <b> 5.5 </b> "
+title: "S3, CloudFront & Amplify"
+date: "2025-09-08"
+weight: 5
+chapter: false
+pre: " <b> 5.5. </b> "
 ---
 
-Khi bạn tạo một Interface Endpoint  hoặc cổng, bạn có thể đính kèm một chính sách điểm cuối để kiểm soát quyền truy cập vào dịch vụ mà bạn đang kết nối. Chính sách VPC Endpoint là chính sách tài nguyên IAM mà bạn đính kèm vào điểm cuối. Nếu bạn không đính kèm chính sách khi tạo điểm cuối, thì AWS sẽ đính kèm chính sách mặc định cho bạn để cho phép toàn quyền truy cập vào dịch vụ thông qua điểm cuối.
+Trong phần này, bạn sẽ thiết lập Amazon S3 cho tài nguyên tĩnh, CloudFront để phân phối nội dung, và AWS Amplify để host ứng dụng React frontend.
 
-Bạn có thể tạo chính sách chỉ hạn chế quyền truy cập vào các S3 bucket cụ thể. Điều này hữu ích nếu bạn chỉ muốn một số Bộ chứa S3 nhất định có thể truy cập được thông qua điểm cuối.
+#### Tổng quan Kiến trúc
 
-Trong phần này, bạn sẽ tạo chính sách VPC Endpoint hạn chế quyền truy cập vào S3 bucket được chỉ định trong chính sách VPC Endpoint.
-
-![endpoint diagram](/images/5-Workshop/5.5-Policy/s3-bucket-policy.png)
-
-#### Kết nối tới EC2 và xác minh kết nối tới S3. 
-
-1. Bắt đầu một phiên AWS Session Manager mới trên máy chủ có tên là Test-Gateway-Endpoint. Từ phiên này, xác minh rằng bạn có thể liệt kê nội dung của bucket mà bạn đã tạo trong Phần 1: Truy cập S3 từ VPC.
-
-```
-aws s3 ls s3://<your-bucket-name>
-```
-![test](/images/5-Workshop/5.5-Policy/test1.png)
-
-Nội dung của bucket bao gồm hai tệp có dung lượng 1GB đã được tải lên trước đó.
-
-2. Tạo một bucket S3 mới; tuân thủ mẫu đặt tên mà bạn đã sử dụng trong Phần 1, nhưng thêm '-2' vào tên. Để các trường khác là mặc định và nhấp vào **Create**.
-
-![create bucket](/images/5-Workshop/5.5-Policy/create-bucket.png)
-
-3. Tạo bucket thành công.
-
-![Success](/images/5-Workshop/5.5-Policy/create-bucket-success.png)
-
-Policy mặc định cho phép truy cập vào tất cả các S3 Buckets thông qua VPC endpoint.
-
-4. Trong giao diện **Edit Policy**, sao chép và dán theo policy sau, thay thế yourbucketname-2 với tên bucket thứ hai của bạn. Policy này sẽ cho phép truy cập đến bucket mới thông qua VPC endpoint, nhưng không cho phép truy cập đến các bucket còn lại. Chọn **Save** để kích hoạt policy.
+![Ảnh đại diện của bạn](/images/5-Workshop/cloudfront.jpg)
 
 
-```
+---
+
+#### Phần 1: Thiết lập Amazon S3
+
+##### Bước 1: Tạo S3 Bucket cho Assets
+
+1. Vào **S3 Console** → **Create bucket**
+
+2. General configuration:
+   - **Bucket name**: `daivietblood-assets-{your-account-id}`
+   - **AWS Region**: Asia Pacific (Singapore) ap-southeast-1
+
+3. Object Ownership:
+   - **ACLs disabled** (khuyến nghị)
+
+4. Block Public Access settings:
+   - **Block all public access**: ✅ (Chúng ta sẽ dùng CloudFront)
+
+5. Bucket Versioning:
+   - **Enable** (khuyến nghị cho production)
+
+6. Default encryption:
+   - **Server-side encryption**: Enable
+   - **Encryption type**: Amazon S3 managed keys (SSE-S3)
+
+7. Click **Create bucket**
+
+##### Bước 2: Tạo Bucket Policy cho CloudFront
+
+Sau khi tạo CloudFront distribution (Phần 2), cập nhật bucket policy:
+
+```json
 {
-  "Id": "Policy1631305502445",
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "Stmt1631305501021",
-      "Action": "s3:*",
-      "Effect": "Allow",
-      "Resource": [
-      				"arn:aws:s3:::yourbucketname-2",
-       				"arn:aws:s3:::yourbucketname-2/*"
-       ],
-      "Principal": "*"
-    }
-  ]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowCloudFrontAccess",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+            },
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::daivietblood-assets-{your-account-id}/*",
+            "Condition": {
+                "StringEquals": {
+                    "AWS:SourceArn": "arn:aws:cloudfront::{account-id}:distribution/{distribution-id}"
+                }
+            }
+        }
+    ]
 }
 ```
 
-![custom policy](/images/5-Workshop/5.5-Policy/policy2.png)
+##### Bước 3: Upload Assets mẫu
 
-Cấu hình policy thành công.
+1. Tạo cấu trúc folder:
+   ```
+   /images
+     /blood-types
+     /icons
+     /banners
+   /documents
+   ```
 
-![success](/images/5-Workshop/5.5-Policy/success.png)
+2. Upload các hình ảnh mẫu cho ứng dụng
 
-5. Từ session của bạn trên Test-Gateway-Endpoint instance, kiểm tra truy cập đến S3 bucket bạn tạo ở bước đầu
+---
 
+#### Phần 2: Thiết lập CloudFront
+
+##### Bước 1: Tạo CloudFront Distribution
+
+1. Vào **CloudFront Console** → **Create distribution**
+
+2. Origin settings:
+   - **Origin domain**: Chọn S3 bucket của bạn
+   - **Origin path**: Để trống
+   - **Name**: `daivietblood-s3-origin`
+   - **Origin access**: Origin access control settings (recommended)
+   - **Create new OAC**: Click **Create control setting**
+     - Name: `daivietblood-oac`
+     - Signing behavior: Sign requests
+
+3. Default cache behavior:
+   - **Viewer protocol policy**: Redirect HTTP to HTTPS
+   - **Allowed HTTP methods**: GET, HEAD
+   - **Cache policy**: CachingOptimized
+
+4. Settings:
+   - **Price class**: Use only North America and Europe (hoặc All edge locations)
+   - **Default root object**: `index.html`
+
+5. Click **Create distribution**
+
+6. **Quan trọng**: Copy bucket policy được cung cấp và cập nhật S3 bucket policy
+
+##### Bước 2: Lấy CloudFront Domain
+
+Sau khi distribution được deploy (mất 5-10 phút):
+
+1. Copy **Distribution domain name**:
+   ```
+   https://d1234567890.cloudfront.net
+   ```
+
+2. Test truy cập asset:
+   ```
+   https://d1234567890.cloudfront.net/images/logo.png
+   ```
+
+---
+
+#### Phần 3: Thiết lập AWS Amplify
+
+##### Bước 1: Chuẩn bị ứng dụng React
+
+1. Tạo React app (nếu chưa có):
+```bash
+npx create-react-app daivietblood-frontend
+cd daivietblood-frontend
 ```
-aws s3 ls s3://<yourbucketname>
+
+2. Cài đặt dependencies:
+```bash
+npm install axios react-router-dom
 ```
 
-Câu lệnh trả về lỗi bởi vì truy cập vào S3 bucket không có quyền trong VPC endpoint policy.
+3. Tạo file `.env`:
+```
+REACT_APP_API_URL=https://xxxxxxxxxx.execute-api.ap-southeast-1.amazonaws.com/prod
+REACT_APP_ASSETS_URL=https://d1234567890.cloudfront.net
+```
 
-![error](/images/5-Workshop/5.5-Policy/error.png)
+4. API service mẫu (`src/services/api.js`):
+```javascript
+import axios from 'axios';
 
-6. Trở lại home directory của bạn trên EC2 instance ```cd~```
+const API_URL = process.env.REACT_APP_API_URL;
 
-+ Tạo file ```fallocate -l 1G test-bucket2.xyz ```
-+ Sao chép file lên bucket thứ  2 ```aws s3 cp test-bucket2.xyz s3://<your-2nd-bucket-name>```
+export const getUsers = async () => {
+  const response = await axios.get(`${API_URL}/users`);
+  return response.data;
+};
 
-![success](/images/5-Workshop/5.5-Policy/test2.png)
+export const createUser = async (userData) => {
+  const response = await axios.post(`${API_URL}/users`, userData);
+  return response.data;
+};
 
-Thao tác này được cho phép bởi VPC endpoint policy.
+export const getEmergencyRequests = async () => {
+  const response = await axios.get(`${API_URL}/emergency-requests`);
+  return response.data;
+};
 
-![success](/images/5-Workshop/5.5-Policy/test2-success.png)
+export const createEmergencyRequest = async (requestData) => {
+  const response = await axios.post(`${API_URL}/emergency-requests`, requestData);
+  return response.data;
+};
+```
 
-Sau đó chúng ta kiểm tra truy cập vào S3 bucket đầu tiên
+5. Push lên GitHub repository
 
- ```aws s3 cp test-bucket2.xyz s3://<your-1st-bucket-name>```
+##### Bước 2: Deploy với Amplify
 
- ![fail](/images/5-Workshop/5.5-Policy/test2-fail.png)
+1. Vào **AWS Amplify Console** → **Create new app**
 
- Câu lệnh xảy ra lỗi bởi vì bucket không có quyền truy cập bởi VPC endpoint policy.
+2. Chọn source:
+   - **GitHub** → **Continue**
+   - Authorize AWS Amplify truy cập GitHub của bạn
 
-Trong phần này, bạn đã tạo chính sách VPC Endpoint cho Amazon S3 và sử dụng AWS CLI để kiểm tra chính sách. Các hoạt động AWS CLI liên quan đến bucket S3 ban đầu của bạn thất bại vì bạn áp dụng một chính sách chỉ cho phép truy cập đến bucket thứ hai mà bạn đã tạo. Các hoạt động AWS CLI nhắm vào bucket thứ hai của bạn thành công vì chính sách cho phép chúng. Những chính sách này có thể hữu ích trong các tình huống khi bạn cần kiểm soát quyền truy cập vào tài nguyên thông qua VPC Endpoint.
+3. Thêm repository branch:
+   - **Repository**: Chọn repository của bạn
+   - **Branch**: main
+
+4. Cấu hình build settings:
+   - **App name**: `daivietblood-frontend`
+   - **Build and test settings**: Auto-detected cho React
+
+5. Build settings (amplify.yml):
+```yaml
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: build
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+```
+
+6. Environment variables:
+   - Thêm `REACT_APP_API_URL` và `REACT_APP_ASSETS_URL`
+
+7. Click **Save and deploy**
+
+##### Bước 3: Cấu hình Custom Domain (Tùy chọn)
+
+1. Vào **App settings** → **Domain management**
+2. Click **Add domain**
+3. Nhập tên domain của bạn
+4. Cấu hình DNS records theo hướng dẫn
+
+---
+
+#### Phần 4: Xác minh Deployment
+
+1. Truy cập Amplify URL:
+   ```
+   https://main.d1234567890.amplifyapp.com
+   ```
+
+2. Test chức năng:
+   - [ ] Homepage load đúng
+   - [ ] API calls hoạt động (kiểm tra Network tab)
+   - [ ] Images load từ CloudFront
+   - [ ] Không có CORS errors
+
+---
+
+#### Checklist xác minh
+
+- [ ] S3 bucket đã tạo với settings đúng
+- [ ] CloudFront distribution đã deploy
+- [ ] S3 bucket policy đã cập nhật cho CloudFront access
+- [ ] Assets có thể truy cập qua CloudFront URL
+- [ ] React app đã deploy lên Amplify
+- [ ] Environment variables đã cấu hình
+- [ ] Frontend có thể gọi API Gateway
+- [ ] Images load từ CloudFront

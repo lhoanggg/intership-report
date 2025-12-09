@@ -10,9 +10,7 @@ pre: " <b> 4. </b> "
 
 ---
 
-{{% notice warning %}}
-⚠️ **Lưu ý:** Các thông tin dưới đây chỉ nhằm mục đích tham khảo, vui lòng **không sao chép nguyên văn** cho bài báo cáo của bạn kể cả warning này.
-{{% /notice %}}
+
 
 > Trong phần này, bạn nên liệt kê và mô tả chi tiết các sự kiện bạn đã tham gia trong quá trình thực tập hoặc làm việc.
 >

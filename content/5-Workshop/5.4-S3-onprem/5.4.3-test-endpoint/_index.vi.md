@@ -1,55 +1,177 @@
 ---
-title : "Kiểm tra Interface Endpoint"
-date : "`r Sys.Date()`"
-weight : 3
-chapter : false
-pre : " <b> 5.4.3 </b> "
+title: "Test API Endpoints"
+date: "2025-09-08"
+weight: 3
+chapter: false
+pre: " <b> 5.4.3. </b> "
 ---
 
-#### Lấy regional DNS name (tên DNS khu vực) của S3 interface endpoint
-1. Trong Amazon VPC menu, chọn Endpoints.
+#### Bước 1: Test từ API Gateway Console
 
-2. Click tên của endpoint chúng ta mới tạo ở mục 4.2: s3-interface-endpoint. Click details và lưu lại regional DNS name của endpoint (cái đầu tiên) vào text-editor của bạn để dùng ở các bước sau.
+**1.1. Test GET /users**
 
-![dns name](/images/5-Workshop/5.4-S3-onprem/dns.png)
+1. Vào **API Gateway Console** → Chọn `daivietblood-api`
+2. Chọn `/users` → **GET**
+3. Click **Test**
+4. Click nút **Test**
 
-#### Kết nối đến EC2 instance ở trong "VPC On-prem" (giả lập môi trường truyền thống)
-
-1. Đi đến **Session manager** bằng cách gõ "session manager" vào ô tìm kiếm
-
-2. Click **Start Session**, chọn EC2 instance có tên **Test-Interface-Endpoint**. EC2 instance này đang chạy trên "VPC On-prem" và sẽ được sử dụng để kiểm tra kết nối đến Amazon S3 thông qua Interface endpoint. Session Manager sẽ mở 1 browser tab mới với shell prompt: **sh-4.2 $**
-
-![Start session](/images/5-Workshop/5.4-S3-onprem/start-session.png)
-
-3. Đi đến ssm-user's home directory với lệnh "cd ~"
-
-4. Tạo 1 file tên testfile2.xyz
-```
-fallocate -l 1G testfile2.xyz
+Response mong đợi:
+```json
+{
+  "statusCode": 200,
+  "body": "[]"
+}
 ```
 
-![user](/images/5-Workshop/5.4-S3-onprem/cli1.png)
+---
 
-5. Copy file vào S3 bucket mình tạo ở section 4.2
+#### Bước 2: Test với cURL
+
+Thay `YOUR_API_URL` bằng Invoke URL thực tế của bạn.
+
+**2.1. Tạo User (POST /users)**
+
+```bash
+curl -X POST https://YOUR_API_URL/prod/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "nguyen.van.a@example.com",
+    "name": "Nguyen Van A",
+    "blood_type": "O+",
+    "phone": "0901234567"
+  }'
 ```
-aws s3 cp --endpoint-url https://bucket.<Regional-DNS-Name> testfile2.xyz s3://<your-bucket-name>
-``` 
-+ Câu lệnh này yêu cầu thông số --endpoint-url, bởi vì bạn cần sử dụng DNS name chỉ định cho endpoint để truy cập vào S3 thông qua Interface endpoint.
-+ Không lấy ' * ' khi copy/paste tên DNS khu vực.
-+ Cung cấp tên S3 bucket của bạn
 
-![copy file](/images/5-Workshop/5.4-S3-onprem/cli2.png)
+Response mong đợi:
+```json
+{
+  "id": 1,
+  "email": "nguyen.van.a@example.com",
+  "name": "Nguyen Van A",
+  "blood_type": "O+",
+  "phone": "0901234567"
+}
+```
 
-Bây giờ tệp đã được thêm vào bộ chứa S3 của bạn. Hãy kiểm tra bộ chứa S3 của bạn trong bước tiếp theo.
+**2.2. Lấy tất cả Users (GET /users)**
 
-#### Kiểm tra Object trong S3 bucket
+```bash
+curl https://YOUR_API_URL/prod/users
+```
 
-1. Đi đến S3 console
-2. Click Buckets
-3. Click tên bucket của bạn và bạn sẽ thấy testfile2.xyz đã được thêm vào s3 bucket của bạn
+Response mong đợi:
+```json
+[
+  {
+    "id": 1,
+    "email": "nguyen.van.a@example.com",
+    "name": "Nguyen Van A",
+    "blood_type": "O+",
+    "phone": "0901234567",
+    "created_at": "2025-12-09T10:00:00.000Z"
+  }
+]
+```
 
-![check bucket](/images/5-Workshop/5.4-S3-onprem/check-bucket.png)
+**2.3. Tạo yêu cầu cấp cứu (POST /emergency-requests)**
 
+```bash
+curl -X POST https://YOUR_API_URL/prod/emergency-requests \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requester_name": "Benh vien Cho Ray",
+    "blood_type": "AB-",
+    "units_needed": 5,
+    "hospital": "Cho Ray Hospital",
+    "urgency": "critical"
+  }'
+```
 
+Response mong đợi:
+```json
+{
+  "id": 1,
+  "message": "Emergency request created"
+}
+```
 
+**2.4. Lấy yêu cầu cấp cứu (GET /emergency-requests)**
 
+```bash
+curl https://YOUR_API_URL/prod/emergency-requests
+```
+
+---
+
+#### Bước 3: Test với Postman
+
+1. Mở Postman
+2. Tạo Collection mới: `DaiVietBlood API`
+3. Thêm các requests:
+
+| Tên Request | Method | URL |
+|:------------|:-------|:----|
+| Get Users | GET | `{{baseUrl}}/users` |
+| Create User | POST | `{{baseUrl}}/users` |
+| Get Emergency Requests | GET | `{{baseUrl}}/emergency-requests` |
+| Create Emergency Request | POST | `{{baseUrl}}/emergency-requests` |
+
+4. Đặt Collection variable:
+   - `baseUrl`: `https://YOUR_API_URL/prod`
+
+---
+
+#### Bước 4: Kiểm tra Lambda Logs
+
+1. Vào **CloudWatch Console** → **Log groups**
+
+2. Tìm log groups:
+   - `/aws/lambda/daivietblood-get-users`
+   - `/aws/lambda/daivietblood-create-user`
+   - `/aws/lambda/daivietblood-emergency-requests`
+
+3. Kiểm tra log streams gần đây để xem:
+   - Các invocations thành công
+   - Bất kỳ errors hoặc exceptions
+   - Database connection logs
+
+---
+
+#### Các vấn đề thường gặp & Giải pháp
+
+| Vấn đề | Nguyên nhân | Giải pháp |
+|:-------|:------------|:----------|
+| 502 Bad Gateway | Lambda error | Kiểm tra CloudWatch logs để xem chi tiết |
+| Timeout | Lambda không thể kết nối RDS | Xác minh VPC, Subnets, Security Groups |
+| CORS error | CORS chưa cấu hình | Bật CORS trên API Gateway |
+| 500 Internal Server Error | Kết nối database thất bại | Kiểm tra DB credentials trong environment variables |
+
+---
+
+#### Bước 5: Kiểm tra Performance
+
+1. Ghi nhận thời gian response cho mỗi API call
+2. Lần gọi đầu tiên có thể chậm (Lambda cold start)
+3. Các lần gọi tiếp theo sẽ nhanh hơn
+
+Performance mong đợi:
+| Endpoint | Cold Start | Warm |
+|:---------|:-----------|:-----|
+| GET /users | ~3-5s | ~200-500ms |
+| POST /users | ~3-5s | ~200-500ms |
+| GET /emergency-requests | ~3-5s | ~200-500ms |
+
+{{% notice tip %}}
+💡 **Mẹo:** Lambda cold start trong VPC có thể chậm. Cân nhắc sử dụng Provisioned Concurrency cho production workloads.
+{{% /notice %}}
+
+---
+
+#### Checklist xác minh
+
+- [ ] GET /users trả về mảng rỗng hoặc danh sách users
+- [ ] POST /users tạo user mới thành công
+- [ ] GET /emergency-requests trả về danh sách requests
+- [ ] POST /emergency-requests tạo request mới
+- [ ] Không có CORS errors trong browser console
+- [ ] CloudWatch logs hiển thị invocations thành công

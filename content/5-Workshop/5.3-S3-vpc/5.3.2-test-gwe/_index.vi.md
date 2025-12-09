@@ -1,82 +1,213 @@
 ---
-title : "Kiểm tra Gateway Endpoint"
-date :  "`r Sys.Date()`" 
-weight : 2
-chapter : false
-pre : " <b> 5.3.2 </b> "
+title: "Tạo Amazon RDS"
+date: "2025-09-08"
+weight: 2
+chapter: false
+pre: " <b> 5.3.2. </b> "
 ---
 
-#### Tạo S3 bucket
+#### Bước 1: Tạo RDS MySQL Instance
 
-1. Đi đến S3 management console
-2. Trong Bucket console, chọn **Create bucket**
+1. Vào **RDS Console** → **Databases** → **Create database**
 
-![Create bucket](/images/5-Workshop/5.3-S3-vpc/create-bucket.png)
+2. Chọn phương thức tạo database:
+   - **Standard create**
 
-3. Trong Create bucket console
-+ Đặt tên bucket: chọn 1 tên mà không bị trùng trong phạm vi toàn cầu (gợi ý: lab\<số-lab\>\<tên-bạn\>)
+3. Engine options:
+   - **Engine type**: MySQL
+   - **Engine version**: MySQL 8.0.35 (hoặc phiên bản 8.0.x mới nhất)
 
-![Bucket name](/images/5-Workshop/5.3-S3-vpc/bucket-name.png)
+4. Templates:
+   - **Free tier** (cho workshop/testing)
 
+5. Settings:
+   - **DB instance identifier**: `daivietblood-db`
+   - **Master username**: `admin`
+   - **Credentials management**: Self managed
+   - **Master password**: `YourSecurePassword123!`
+   - **Confirm password**: `YourSecurePassword123!`
 
-+ Giữ nguyên giá trị của các fields khác (default)
-+ Kéo chuột xuống và chọn **Create bucket**
+{{% notice warning %}}
+⚠️ **Quan trọng:** Lưu password an toàn. Bạn sẽ cần nó để kết nối từ Lambda.
+{{% /notice %}}
 
-![Create](/images/5-Workshop/5.3-S3-vpc/create-button.png)    
+---
 
-+ Tạo thành công S3 bucket
+#### Bước 2: Cấu hình Instance
 
-![Success](/images/5-Workshop/5.3-S3-vpc/bucket-success.png)
+1. Instance configuration:
+   - **DB instance class**: db.t3.micro (Free tier eligible)
+   - **Storage type**: General Purpose SSD (gp2)
+   - **Allocated storage**: 20 GiB
+   - **Storage autoscaling**: Disable (để kiểm soát chi phí)
 
-#### Kết nối với EC2 bằng session manager
+---
 
-+ Trong workshop này, bạn sẽ dùng AWS Session Manager để kết nối đến các EC2 instances. Session Manager là 1 tính năng trong dịch vụ Systems Manager được quản lý hoàn toàn bởi AWS. System manager cho phép bạn quản lý Amazon EC2 instances và các máy ảo on-premises (VMs)thông qua 1 browser-based shell. Session Manager cung cấp khả năng quản lý phiên bản an toàn và có thể kiểm tra mà không cần mở cổng vào, duy trì máy chủ bastion host hoặc quản lý khóa SSH.
+#### Bước 3: Kết nối
 
-+ First cloud journey [Lab](https://000058.awsstudygroup.com/1-introduce/) để hiểu sâu hơn về Session manager.
+1. Connectivity:
+   - **Compute resource**: Don't connect to an EC2 compute resource
+   - **Network type**: IPv4
+   - **Virtual private cloud (VPC)**: `daivietblood-vpc`
+   - **DB subnet group**: `daivietblood-db-subnet-group`
+   - **Public access**: **No** ⚠️ Quan trọng!
+   - **VPC security group**: Choose existing
+   - **Existing VPC security groups**: `daivietblood-rds-sg`
+   - **Availability Zone**: ap-southeast-1a
 
-1. Trong AWS Management Console, gõ Systems Manager trong ô tìm kiếm và nhấn Enter:
+2. Database port:
+   - **Database port**: 3306
 
-![system manager](/images/5-Workshop/5.3-S3-vpc/sm.png)
+---
 
-2. Từ **Systems Manager** menu, tìm **Node Management** ở thanh bên trái và chọn **Session Manager**:
+#### Bước 4: Xác thực Database
 
-![system manager](/images/5-Workshop/5.3-S3-vpc/sm1.png)
+1. Database authentication:
+   - **Password authentication**
 
-3. Click Start Session, và chọn EC2 instance tên **Test-Gateway-Endpoint**. 
+---
+
+#### Bước 5: Cấu hình bổ sung
+
+1. Database options:
+   - **Initial database name**: `daivietblood`
+   - **DB parameter group**: default.mysql8.0
+   - **Option group**: default:mysql-8-0
+
+2. Backup:
+   - **Enable automated backups**: Yes
+   - **Backup retention period**: 7 days
+   - **Backup window**: No preference
+
+3. Encryption:
+   - **Enable encryption**: Yes (mặc định)
+
+4. Monitoring:
+   - **Enable Enhanced monitoring**: No (để giảm chi phí)
+
+5. Maintenance:
+   - **Enable auto minor version upgrade**: Yes
+   - **Maintenance window**: No preference
+
+6. Deletion protection:
+   - **Enable deletion protection**: No (cho workshop)
+
+7. Click **Create database**
+
 {{% notice info %}}
-Phiên bản EC2 này đã chạy trong "VPC cloud" và sẽ được dùng để kiểm tra khả năng kết nối với Amazon S3 thông qua điểm cuối Cổng mà bạn vừa tạo (s3-gwe). {{% /notice %}}
+ℹ️ Việc tạo RDS mất 10-15 phút. Đợi đến khi status hiển thị "Available".
+{{% /notice %}}
 
-![Start session](/images/5-Workshop/5.3-S3-vpc/start-session.png)
+---
 
-Session Manager sẽ mở browser tab mới với shell prompt: sh-4.2 $
+#### Bước 6: Lấy RDS Endpoint
 
-![Success](/images/5-Workshop/5.3-S3-vpc/start-session-success.png)
+Sau khi RDS available:
 
-Bạn đã bắt đầu phiên kết nối đến EC2 trong VPC Cloud thành công. Trong bước tiếp theo, chúng ta sẽ tạo một  S3 bucket và một tệp trong đó.
-#### Create a file and upload to s3 bucket
+1. Vào **RDS Console** → **Databases** → Click `daivietblood-db`
 
-1. Đổi về ssm-user's thư mục bằng lệnh "cd ~" 
+2. Trong tab **Connectivity & security**, copy:
+   - **Endpoint**: `daivietblood-db.xxxxxxxxxxxx.ap-southeast-1.rds.amazonaws.com`
+   - **Port**: `3306`
 
-![Change user's dir](/images/5-Workshop/5.3-S3-vpc/cli1.png)
+3. Lưu các giá trị này cho cấu hình Lambda:
+```
+DB_HOST=daivietblood-db.xxxxxxxxxxxx.ap-southeast-1.rds.amazonaws.com
+DB_PORT=3306
+DB_NAME=daivietblood
+DB_USER=admin
+DB_PASSWORD=YourSecurePassword123!
+```
 
-2. Tạo 1 file để kiểm tra bằng lệnh "fallocate -l 1G testfile.xyz", 1 file tên "testfile.xyz" có kích thước 1GB sẽ được tạo.
+---
 
-![Create file](/images/5-Workshop/5.3-S3-vpc/cli-file.png)
+#### Bước 7: Tạo Database Schema
 
-3. Tải file mình vừa tạo lên S3 với lệnh "aws s3 cp testfile.xyz s3://your-bucket-name". Thay your-bucket-name bằng tên S3 bạn đã tạo.
+Vì RDS nằm trong Private Subnet, bạn cần kết nối qua bastion host hoặc sử dụng Lambda để khởi tạo schema.
 
-![Uploaded](/images/5-Workshop/5.3-S3-vpc/uploaded.png)
+**Cách A: Sử dụng Lambda để khởi tạo (Khuyến nghị)**
 
-Bạn đã tải thành công tệp lên bộ chứa S3 của mình. Bây giờ bạn có thể kết thúc session.
+Tạo Lambda function một lần để khởi tạo database:
 
-#### Kiểm tra object trong S3 bucket
+```javascript
+// init-db.js
+const mysql = require('mysql2/promise');
 
-1. Đi đến S3 console.  
-2. Click tên s3 bucket của bạn
-3. Trong Bucket console, bạn sẽ thấy tệp bạn đã tải lên S3 bucket của mình
+exports.handler = async (event) => {
+  const connection = await mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+  });
 
-![Check S3](/images/5-Workshop/5.3-S3-vpc/check-s3-bucket.png)
+  // Tạo các bảng
+  const createUsersTable = `
+    CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      blood_type ENUM('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-') NOT NULL,
+      phone VARCHAR(20),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
 
-#### Tóm tắt
+  const createDonationsTable = `
+    CREATE TABLE IF NOT EXISTS donations (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      donation_date DATE NOT NULL,
+      location VARCHAR(255),
+      status ENUM('scheduled', 'completed', 'cancelled') DEFAULT 'scheduled',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `;
 
-Chúc mừng bạn đã hoàn thành truy cập S3 từ VPC. Trong phần này, bạn đã tạo gateway endpoint cho Amazon S3 và sử dụng AWS CLI để tải file lên. Quá trình tải lên hoạt động vì gateway endpoint cho phép giao tiếp với S3 mà không cần Internet gateway gắn vào "VPC Cloud". Điều này thể hiện chức năng của gateway endpoint như một đường dẫn an toàn đến S3 mà không cần đi qua pub    lic Internet.
+  const createEmergencyRequestsTable = `
+    CREATE TABLE IF NOT EXISTS emergency_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      requester_name VARCHAR(255) NOT NULL,
+      blood_type ENUM('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-') NOT NULL,
+      units_needed INT NOT NULL,
+      hospital VARCHAR(255) NOT NULL,
+      urgency ENUM('critical', 'urgent', 'normal') DEFAULT 'normal',
+      status ENUM('open', 'fulfilled', 'cancelled') DEFAULT 'open',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+
+  await connection.execute(createUsersTable);
+  await connection.execute(createDonationsTable);
+  await connection.execute(createEmergencyRequestsTable);
+
+  await connection.end();
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: 'Database initialized successfully' })
+  };
+};
+```
+
+---
+
+#### Checklist xác minh
+
+- [ ] RDS instance đã tạo và status là "Available"
+- [ ] RDS nằm trong Private Subnet (Public access: No)
+- [ ] RDS Security Group chỉ cho phép truy cập từ Lambda SG
+- [ ] Endpoint và credentials đã lưu an toàn
+- [ ] Database ban đầu `daivietblood` đã tạo
+- [ ] Database schema đã khởi tạo (các bảng đã tạo)
+
+---
+
+#### Xử lý sự cố
+
+| Vấn đề | Giải pháp |
+|:-------|:----------|
+| Không thể kết nối đến RDS | Xác minh Security Group cho phép inbound từ Lambda SG |
+| Tạo RDS thất bại | Kiểm tra Service Quotas cho RDS instances |
+| Connection timeout | Đảm bảo Lambda cùng VPC và có NAT Gateway access |

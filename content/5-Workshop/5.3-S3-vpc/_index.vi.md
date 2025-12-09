@@ -1,18 +1,18 @@
 ---
-title : "Truy cập S3 từ VPC"
-date :  "`r Sys.Date()`" 
-weight : 3
-chapter : false
-pre : " <b> 5.3. </b> "
+title: "VPC & Amazon RDS"
+date: "2025-09-08"
+weight: 3
+chapter: false
+pre: " <b> 5.3. </b> "
 ---
 
-#### Sử dụng Gateway endpoint
+Trong phần này, bạn sẽ tạo hạ tầng mạng (VPC) và cơ sở dữ liệu (RDS) cho hệ thống DaiVietBlood.
 
-Trong phần này, bạn sẽ tạo một Gateway endpoint để truy cập Amazon S3 từ một EC2 instance. Gateway endpoint sẽ cho phép tải một object lên S3 bucket mà không cần sử dụng Internet Công cộng. Để tạo endpoint, bạn phải chỉ định VPC mà bạn muốn tạo endpoint và dịch vụ (trong trường hợp này là S3) mà bạn muốn thiết lập kết nối.
+#### Tổng quan Kiến trúc
 
-![overview](/images/5-Workshop/5.3-S3-vpc/diagram2.png)
+![Ảnh đại diện của bạn](/images/5-Workshop/rds.jpg)
 
 #### Nội dung
 
-- [Tạo gateway endpoint](3.1-create-gwe/)
-- [Test gateway endpoint](3.2-test-gwe/)
+1. [Tạo VPC](5.3.1-create-gwe/)
+2. [Tạo Amazon RDS](5.3.2-test-gwe/)

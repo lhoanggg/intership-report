@@ -1,57 +1,315 @@
 ---
-title : "Prepare the environment"
-date : "`r Sys.Date()`"
-weight : 1
-chapter : false
-pre : " <b> 5.4.1 </b> "
+title: "Create Lambda Functions"
+date: "2025-09-08"
+weight: 1
+chapter: false
+pre: " <b> 5.4.1. </b> "
 ---
 
-To prepare for this part of the workshop you will need to:
-+ Deploying a CloudFormation stack 
-+ Modifying a VPC route table. 
+#### Step 1: Create IAM Role for Lambda
 
-These components work together to simulate on-premises DNS forwarding and name resolution.
+1. Go to **IAM Console** → **Roles** → **Create role**
 
-#### Deploy the CloudFormation stack
+2. Trusted entity type:
+   - **AWS service**
+   - **Use case**: Lambda
 
-The CloudFormation template will create additional services to support an on-premises simulation:
-+ One Route 53 Private Hosted Zone that hosts Alias records for the PrivateLink S3 endpoint
-+ One Route 53 Inbound Resolver endpoint that enables "VPC Cloud" to resolve inbound DNS resolution requests to the Private Hosted Zone
-+ One Route 53 Outbound Resolver endpoint that enables "VPC On-prem" to forward DNS requests for S3 to "VPC Cloud"
+3. Add permissions:
+   - `AWSLambdaVPCAccessExecutionRole`
+   - `AWSLambdaBasicExecutionRole`
 
-![route 53 diagram](/images/5-Workshop/5.4-S3-onprem/route53.png)
+4. Role details:
+   - **Role name**: `daivietblood-lambda-role`
+   - **Description**: IAM role for DaiVietBlood Lambda functions
 
-1. Click the following link to open the [AWS CloudFormation console](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/quickcreate?templateURL=https://s3.amazonaws.com/reinvent-endpoints-builders-session/R53CF.yaml&stackName=PLOnpremSetup). The required template will be pre-loaded into the menu. Accept all default and click Create stack.
+5. Click **Create role**
 
-![Create stack](/images/5-Workshop/5.4-S3-onprem/create-stack.png)
+---
 
-![Button](/images/5-Workshop/5.4-S3-onprem/create-stack-button.png)
+#### Step 2: Create Lambda Layer for Dependencies
 
-It may take a few minutes for stack deployment to complete. You can continue with the next step without waiting for the deployemnt to finish.
+1. Create a folder for dependencies:
+```bash
+mkdir -p nodejs
+cd nodejs
+npm init -y
+npm install mysql2
+```
 
-#### Update on-premise private route table
+2. Create zip file:
+```bash
+cd ..
+zip -r mysql2-layer.zip nodejs
+```
 
-This workshop uses a strongSwan VPN running on an EC2 instance to simulate connectivty between an on-premises datacenter and the AWS cloud. Most of the required components are provisioned before your start. To finalize the VPN configuration, you will modify the "VPC On-prem" routing table to direct traffic destined for the cloud to the strongSwan VPN instance.
+3. Go to **Lambda Console** → **Layers** → **Create layer**
 
-1. Open the Amazon EC2 console 
+4. Configure:
+   - **Name**: `mysql2-layer`
+   - **Upload**: Select `mysql2-layer.zip`
+   - **Compatible runtimes**: Node.js 18.x, Node.js 20.x
 
-2. Select the instance named infra-vpngw-test. From the Details tab, copy the Instance ID and paste this into your text editor
+5. Click **Create**
 
-![ec2 id](/images/5-Workshop/5.4-S3-onprem/ec2-onprem-id.png)
+---
 
-3. Navigate to the VPC menu by using the Search box at the top of the browser window.
+#### Step 3: Create Lambda Function - Get Users
 
-4. Click on Route Tables, select the RT Private On-prem route table, select the Routes tab, and click Edit Routes.
+1. Go to **Lambda Console** → **Functions** → **Create function**
 
-![rt](/images/5-Workshop/5.4-S3-onprem/rt.png)
+2. Basic information:
+   - **Function name**: `daivietblood-get-users`
+   - **Runtime**: Node.js 20.x
+   - **Architecture**: x86_64
+   - **Execution role**: Use existing role → `daivietblood-lambda-role`
 
-5. Click Add route.
-+ Destination: your Cloud VPC cidr range
-+ Target: ID of your infra-vpngw-test instance (you saved in your editor at step 1)
+3. Click **Create function**
 
-![add route](/images/5-Workshop/5.4-S3-onprem/add-route.png)
+4. Add Layer:
+   - Scroll to **Layers** → **Add a layer**
+   - **Custom layers** → Select `mysql2-layer`
+   - Click **Add**
 
-6. Click Save changes
+5. Configure VPC:
+   - Go to **Configuration** → **VPC** → **Edit**
+   - **VPC**: `daivietblood-vpc`
+   - **Subnets**: Select both Private Subnets
+   - **Security groups**: `daivietblood-lambda-sg`
+   - Click **Save**
 
+6. Add Environment Variables:
+   - Go to **Configuration** → **Environment variables** → **Edit**
+   - Add:
+     ```
+     DB_HOST = daivietblood-db.xxxx.ap-southeast-1.rds.amazonaws.com
+     DB_PORT = 3306
+     DB_NAME = daivietblood
+     DB_USER = admin
+     DB_PASSWORD = YourSecurePassword123!
+     ```
+   - Click **Save**
 
+7. Add code in **Code** tab:
 
+```javascript
+const mysql = require('mysql2/promise');
+
+let connection;
+
+const getConnection = async () => {
+  if (!connection) {
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    });
+  }
+  return connection;
+};
+
+exports.handler = async (event) => {
+  try {
+    const conn = await getConnection();
+    const [rows] = await conn.execute('SELECT * FROM users');
+    
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify(rows)
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
+  }
+};
+```
+
+8. Click **Deploy**
+
+---
+
+#### Step 4: Create Lambda Function - Create User
+
+1. Create new function: `daivietblood-create-user`
+2. Same configuration as above (VPC, Layer, Environment Variables)
+3. Add code:
+
+```javascript
+const mysql = require('mysql2/promise');
+
+let connection;
+
+const getConnection = async () => {
+  if (!connection) {
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    });
+  }
+  return connection;
+};
+
+exports.handler = async (event) => {
+  try {
+    const body = JSON.parse(event.body);
+    const { email, name, blood_type, phone } = body;
+
+    if (!email || !name || !blood_type) {
+      return {
+        statusCode: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Missing required fields' })
+      };
+    }
+
+    const conn = await getConnection();
+    const [result] = await conn.execute(
+      'INSERT INTO users (email, name, blood_type, phone) VALUES (?, ?, ?, ?)',
+      [email, name, blood_type, phone || null]
+    );
+
+    return {
+      statusCode: 201,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({
+        id: result.insertId,
+        email,
+        name,
+        blood_type,
+        phone
+      })
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    
+    if (error.code === 'ER_DUP_ENTRY') {
+      return {
+        statusCode: 409,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Email already exists' })
+      };
+    }
+
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
+  }
+};
+```
+
+---
+
+#### Step 5: Create Lambda Function - Emergency Requests
+
+1. Create function: `daivietblood-emergency-requests`
+2. Same configuration
+3. Add code:
+
+```javascript
+const mysql = require('mysql2/promise');
+
+let connection;
+
+const getConnection = async () => {
+  if (!connection) {
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    });
+  }
+  return connection;
+};
+
+exports.handler = async (event) => {
+  const conn = await getConnection();
+  const method = event.httpMethod;
+
+  try {
+    if (method === 'GET') {
+      const [rows] = await conn.execute(
+        'SELECT * FROM emergency_requests WHERE status = "open" ORDER BY urgency DESC, created_at DESC'
+      );
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify(rows)
+      };
+    }
+
+    if (method === 'POST') {
+      const body = JSON.parse(event.body);
+      const { requester_name, blood_type, units_needed, hospital, urgency } = body;
+
+      const [result] = await conn.execute(
+        'INSERT INTO emergency_requests (requester_name, blood_type, units_needed, hospital, urgency) VALUES (?, ?, ?, ?, ?)',
+        [requester_name, blood_type, units_needed, hospital, urgency || 'normal']
+      );
+
+      return {
+        statusCode: 201,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ id: result.insertId, message: 'Emergency request created' })
+      };
+    }
+
+    return {
+      statusCode: 405,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  } catch (error) {
+    console.error('Error:', error);
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Internal server error' })
+    };
+  }
+};
+```
+
+---
+
+#### Verification Checklist
+
+- [ ] IAM Role created with VPC and Basic execution permissions
+- [ ] Lambda Layer created with mysql2 package
+- [ ] Lambda functions created and deployed:
+  - [ ] daivietblood-get-users
+  - [ ] daivietblood-create-user
+  - [ ] daivietblood-emergency-requests
+- [ ] All functions configured with VPC (Private Subnets)
+- [ ] Environment variables set correctly
+- [ ] Functions deployed successfully

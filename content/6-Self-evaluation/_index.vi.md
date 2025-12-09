@@ -6,9 +6,7 @@ chapter: false
 pre: " <b> 6. </b> "
 ---
 
-{{% notice warning %}}
-⚠️ **Lưu ý:** Các thông tin dưới đây chỉ nhằm mục đích tham khảo, vui lòng **không sao chép nguyên văn** cho bài báo cáo của bạn kể cả warning này.
-{{% /notice %}}
+
 
 Trong suốt thời gian thực tập tại **Amazon Web Service Việt Nam** từ **08/09/2025** đến **28/11/2025**, tôi đã có cơ hội học hỏi, rèn luyện và áp dụng kiến thức về điện toán đám mây, đặc biệt là các dịch vụ AWS, vào môi trường làm việc thực tế. 
 

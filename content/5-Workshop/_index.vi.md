@@ -1,6 +1,6 @@
 ---
 title: "Workshop"
-date: "`r Sys.Date()`"
+date: "2025-09-08"
 weight: 5
 chapter: false
 pre: " <b> 5. </b> "
@@ -10,24 +10,56 @@ pre: " <b> 5. </b> "
 ⚠️ **Lưu ý:** Các thông tin dưới đây chỉ nhằm mục đích tham khảo, vui lòng **không sao chép nguyên văn** cho bài báo cáo của bạn kể cả warning này.
 {{% /notice %}}
 
-
-# Đảm bảo truy cập Hybrid an toàn đến S3 bằng cách sử dụng VPC endpoint
+# Xây dựng Hệ thống Serverless trên AWS - DaiVietBlood
 
 #### Tổng quan
 
-**AWS PrivateLink** cung cấp kết nối riêng tư đến các dịch vụ aws từ VPCs hoặc trung tâm dữ liệu (on-premise) mà không làm lộ lưu lượng truy cập ra ngoài public internet.
+Workshop này hướng dẫn bạn xây dựng **Hệ thống Hiến máu & Cấp cứu Serverless (DaiVietBlood)** trên AWS. Bạn sẽ học cách thiết lập và cấu hình các dịch vụ AWS cốt lõi được sử dụng trong kiến trúc dự án.
 
-Trong bài lab này, chúng ta sẽ học cách tạo, cấu hình, và kiểm tra VPC endpoints để cho phép workload của bạn tiếp cận các dịch vụ AWS mà không cần đi qua Internet công cộng.
+![Ảnh kiến trúc AWS](/images/AWS_Architecture.png)
 
-Chúng ta sẽ tạo hai loại endpoints để truy cập đến Amazon S3: gateway vpc endpoint và interface vpc endpoint. Hai loại vpc endpoints này mang đến nhiều lợi ích tùy thuộc vào việc bạn truy cập đến S3 từ môi trường cloud hay từ trung tâm dữ liệu (on-premise).
-+ **Gateway** - Tạo gateway endpoint để gửi lưu lượng đến Amazon S3 hoặc DynamoDB using private IP addresses. Bạn điều hướng lưu lượng từ VPC của bạn đến gateway endpoint bằng các bảng định tuyến (route tables)
-+ **Interface** - Tạo interface endpoint để gửi lưu lượng đến các dịch vụ điểm cuối (endpoints) sử dụng Network Load Balancer để phân phối lưu lượng. Lưu lượng dành cho dịch vụ điểm cuối được resolved bằng DNS.
+#### Các dịch vụ AWS sử dụng
+
+| Dịch vụ | Mục đích |
+|:--------|:---------|
+| **Amazon VPC** | Tạo mạng riêng ảo với Public/Private Subnets |
+| **NAT Gateway** | Cho phép tài nguyên trong Private Subnet truy cập Internet |
+| **Amazon RDS** | Cơ sở dữ liệu MySQL cho ứng dụng |
+| **AWS Lambda** | Xử lý logic nghiệp vụ serverless |
+| **Amazon API Gateway** | Quản lý và expose REST APIs |
+| **Amazon S3** | Lưu trữ tài nguyên tĩnh (images, files) |
+| **Amazon CloudFront** | CDN phân phối nội dung toàn cầu |
+| **AWS Amplify** | Host ứng dụng Frontend (React) |
+| **AWS CodePipeline** | Tự động hóa CI/CD |
+| **Amazon CloudWatch** | Giám sát và logging |
+
+#### Bạn sẽ học được gì
+
+- Thiết kế và triển khai kiến trúc **Serverless-First** trên AWS
+- Cấu hình **VPC** với Public/Private Subnets đảm bảo bảo mật
+- Tạo **RDS MySQL** trong Private Subnet
+- Xây dựng **Lambda Functions** và kết nối với **API Gateway**
+- Lưu trữ và phân phối nội dung với **S3** và **CloudFront**
+- Deploy ứng dụng React với **AWS Amplify**
+- Thiết lập **CI/CD Pipeline** tự động
+- Giám sát ứng dụng với **CloudWatch**
+
+#### Yêu cầu
+
+- Tài khoản AWS với quyền Administrator
+- Kiến thức cơ bản về các dịch vụ AWS
+- Quen thuộc với Node.js và React
+- AWS CLI đã cài đặt và cấu hình
+
+#### Chi phí ước tính
+
+Workshop này sử dụng các tài nguyên nằm trong **AWS Free Tier** khi có thể. Chi phí ước tính khoảng **~$15-20** nếu hoàn thành trong 1-2 ngày và dọn dẹp tài nguyên ngay sau đó.
 
 #### Nội dung
 
-1. [Tổng quan về workshop](5.1-Workshop-overview/)
+1. [Tổng quan Workshop](5.1-Workshop-overview/)
 2. [Chuẩn bị](5.2-Prerequiste/)
-3. [Truy cập đến S3 từ VPC](5.3-S3-vpc/)
-4. [Truy cập đến S3 từ TTDL On-premises](5.4-S3-onprem/)
-5. [VPC Endpoint Policies (làm thêm)](5.5-Policy/)
-6. [Dọn dẹp tài nguyên](5.6-Cleanup/)
+3. [VPC & Amazon RDS](5.3-S3-vpc/)
+4. [Lambda & API Gateway](5.4-S3-onprem/)
+5. [S3, CloudFront & Amplify](5.5-Policy/)
+6. [CI/CD, CloudWatch & Dọn dẹp](5.6-Cleanup/)
