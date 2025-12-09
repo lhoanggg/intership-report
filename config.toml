@@ -1,5 +1,5 @@
-baseURL = "/"
-relativeURLs = true
+baseURL = "https://lhoanggg.github.io/intership-report/"
+relativeURLs = false
 canonifyURLs = false
 defaultContentLanguage = "en"
 
